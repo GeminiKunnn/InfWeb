@@ -139,6 +139,13 @@ python -m http.server 8080 --directory src   # 或 npx serve src
 ```
 访问 `http://localhost:8080`。（ES Module 需经静态服务器，无法 file:// 直开。）
 
+github pages 更新方式：
+项目根目录下
+git add .
+git commit -m "更新页面"
+git push origin main
+git subtree push --prefix=src pages master:main
+
 ## 六、未来规划
 - 接入后端：改写 `store.js` 的 `api` 为 fetch(`/api/character`)。
 - 迁移 Vue：把 `app.js` 渲染层替换为 Vue 模板，`character-config.js`/`store.js` 原样复用。
