@@ -155,6 +155,19 @@ const TEST = `
   const attrCells = attrRows.slice(firstGroupIdx+1, firstGroupIdx+4).map((tr)=>tr.querySelector('.row-label') && tr.querySelector('.row-label')._text);
   ok('生理系下依次为 力量/敏捷/耐力', JSON.stringify(attrCells) === JSON.stringify(physiologyAttrs), attrCells);
 
+  // 属性值(基础+内修) vs 检定值(值+内2+械完它+它2)；传奇按属性值
+  character.attributes.strength.base = 6;   // pool 6
+  character.attributes.strength.gear = 2;   // +2
+  character.attributes.strength.inner2 = 1; // +1
+  character.attributes.strength.other2 = 3; // +3 -> 检定值 12
+  const at = el('div'); at.appendChild(renderFullAttrTable());
+  const atr = at.querySelectorAll('tr');
+  const strRow = atr.find((tr)=>tr.querySelector('.row-label') && tr.querySelector('.row-label')._text === '力量');
+  const strCells = strRow ? strRow.querySelectorAll('td').map((td)=>td._text) : [];
+  ok('表格力量列: 属性值/传奇/检定值 拆分', !strRow || (strCells[1]==='6' && strCells[2]==='1' && strCells[strCells.length-1]==='12'), strCells);
+  ok('表格力量列共12列', !strRow || strCells.length === 12, strCells.length);
+  ok('力量重置', (character.attributes.strength.base=2, character.attributes.strength.gear=0, character.attributes.strength.inner2=0, character.attributes.strength.other2=0, true));
+
   // 敏感范围：仿派生值框（总计+加成 + 灰 tip 隐藏属性）
   const sensBox = boxByTitle('敏感范围');
   ok('敏感范围外框存在', !!sensBox);

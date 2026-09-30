@@ -70,6 +70,12 @@ const AUDIT = `
   line('geneLock(composure) min(base+legendary,10) with base0 = '+ Math.min((0)+attrLegendary('composure'),10));
   line('armorExtraSuccess(stamina leg)= '+attrLegendary('stamina'));
 
+  // ---- attr split: 属性值(基础+内修) vs 检定值(+内2+械完它+它2)；传奇按属性值 ----
+  ch.attributes.dexterity.gear = 3;   // dex base11 -> pool 11, 检定值 14
+  line('attrSplit dex pool='+attrPool('dexterity')+' value='+attrValue('dexterity')+' leg='+attrLegendary('dexterity'));
+  line('  expect pool=11 value=11+inner2 0+3=14 leg=((11-1)/5)=2');
+  ch.attributes.dexterity.gear = 0;
+
   // ---- Base attacks: verify each DP & cap against expected ----
   ch.baseAttacks.forEach((atk)=>{
     const d = baseAttackData(atk);
