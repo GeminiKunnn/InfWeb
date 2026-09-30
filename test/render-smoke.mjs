@@ -134,7 +134,7 @@ const TEST = `
   ok('豁免框含专业/专长/加成1..3+加值1..3', JSON.stringify(labelTexts) === JSON.stringify(['专业','专长','加成1','加成2','加成3','加值1','加值2','加值3']), labelTexts);
   ok('豁免框输入数=8(主体5+附加成功3)', refRow.querySelectorAll('.detail-input').length === 8, refRow.querySelectorAll('.detail-input').length);
   ok('豁免框附加成功区存在(带竖线)', !!boxByTitle('反射豁免').querySelector('.detail-extra-succ'), 'extra-succ');
-  ok('豁免框附加成功小字标题=附加成功', boxByTitle('反射豁免').querySelector('.detail-extra-succ-label')._text === '附加成功', 'label');
+  ok('豁免框附加成功小字已删除(灰线右侧无文字)', !boxByTitle('反射豁免').querySelector('.detail-extra-succ-label'), 'label removed');
   const refTip = boxByTitle('反射豁免').querySelector('.detail-tip');
   ok('反射豁免tip含敏捷+运动+传奇敏捷x3', refTip && refTip._text === '敏捷检定 + 运动检定 + 传奇敏捷×3', refTip?refTip._text:'(no tip)');
 
@@ -247,6 +247,7 @@ const TEST = `
   ok('生命信息含 回复生命/受到伤害 按钮', JSON.stringify(hpBtns) === JSON.stringify(['回复生命','受到伤害']), hpBtns);
   ok('生命控制区两个按钮行', hpCell ? hpCell.querySelectorAll('.health-action').length === 2 : 0, 'actions');
   ok('生命控制区两个输入框', hpCell ? hpCell.querySelectorAll('input').length === 2 : 0, 'inputs');
+  ok('总览敏感范围按感知属性计算=20m', byLab('敏感范围') === '20 m', byLab('敏感范围'));
 
   console.log(results.join('\\n'));
   return results;
