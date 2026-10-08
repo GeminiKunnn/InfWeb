@@ -10,8 +10,9 @@
 
 ### 1. 页面骨架
 - **`src/index.html`**
-  - 左侧垂直菜单栏 `#sidebar`（顶部折叠/展开按钮 + 菜单项：规则书 / 角色卡 / 其他）
+  - 左侧垂直菜单栏 `#sidebar`（顶部折叠按钮 + 点击回主页的「无限流」logo + 菜单项：角色管理 / 规则书 / 轮回之境 / 其他）
   - 右侧内容区 `#app`（页面渲染容器，未来 Vue 根组件挂载点）
+  - 底部用户栏（用户名 + 下拉登出，暂为界面）
   - 使用 ES Module 加载脚本（`<script type="module" src="js/app.js">`）
 
 ### 2. 样式
@@ -22,7 +23,8 @@
 | --- | --- |
 | `js/character-config.js` | **字段定义单一数据源**：九属性、二十一技能、三分组（id 稳定，可作 API/Vue 字段名） |
 | `js/store.js` | **状态 + 持久化**：`emptyCharacter()` 状态对象、`api.save/load`（现走 localStorage，后端预留）、动态行工厂 `newSpell()/newAttack()/newEnergyPool()/newPerk()/newEquipment()/newTrait()/newPurchase()/newRecord()/newReduction()` |
-| `js/app.js` | **渲染与交互**（原生 DOM）：应用级导航、角色卡 sheet 切换、动态行增删、数值自动计算 |
+| `js/app.js` | **渲染与交互**（原生 DOM）：主页面/应用界面切换、角色管理页、角色卡 sheet 切换、动态行增删、数值自动计算、规则书/轮回之境路由 |
+| `js/rules.js` | **规则书模块**：零依赖 Markdown 渲染器 + 规则书页（选择器 + 侧边竖向目录 + 滚动高亮） |
 
 ### 4. 角色卡内部表单（sheet 标签切换）
 `角色总览` / `角色属性` / `法术列表` / `特殊攻击` / `能量池` / `专长` / `装备` / `特性` / `资源`
@@ -35,13 +37,25 @@
 index.html ──加载(ES Module)──▶ js/app.js
                                   │  import
                                   ├─▶ js/character-config.js   (ATTRIBUTES / SKILLS)
-                                  └─▶ js/store.js               (状态 + api + 工厂函数)
+                                  ├─▶ js/store.js               (状态 + api + 工厂函数)
+                                  └─▶ js/rules.js               (规则书渲染)
 js/store.js ──import──▶ js/character-config.js
+js/rules.js ──fetch──▶ content/rules/*.md   (规则书 Markdown 数据)
 ```
-- `app.js` 依赖 `character-config.js`（字段）与 `store.js`（状态），持有单一状态 `character`。
+- `app.js` 依赖 `character-config.js`（字段）、`store.js`（状态）与 `rules.js`（规则书页），持有单一状态 `character`。
 - `store.js` 依赖 `character-config.js` 构造默认属性/技能结构。
-- 三层之间边界清晰：改字段改 `character-config.js`，改持久化/后端改 `store.js` 的 `api`，
-  改界面交互改 `app.js`。迁移 Vue 时仅替换 `app.js` 渲染层。
+- `rules.js` 通过 fetch 加载 `content/rules/*.md` 并渲染；`content/rules/` 由 `scripts/docx2md.py` 从 `Rules/*.docx` 生成。
+- 各模块边界清晰：改字段改 `character-config.js`，改持久化/后端改 `store.js` 的 `api`，
+  改规则书展示改 `rules.js`，改界面交互改 `app.js`。迁移 Vue 时仅替换 `app.js` 渲染层。
+
+### 页面导航（应用内，`appState.page`）
+| 页面 | 说明 |
+| --- | --- |
+| 主页面(landing) | 打开 `index.html` 默认进入；点击「进入」进入应用 |
+| 角色管理 | 按行展示角色卡占位数据（名称/总资源量/生命值/归属房间），点击行进入该角色；右下角「+」新建 |
+| 角色详情 | 现有角色卡页，右上角「返回角色管理」 |
+| 规则书 | 展示 .md 规则书，带侧边竖向目录 |
+| 轮回之境 | 预留页面，后续开发 |
 
 ## 三、数值计算公式
 
@@ -147,9 +161,21 @@ git push origin main
 git subtree push --prefix=src pages master:main
 
 ## 六、未来规划
-- 接入后端：改写 `store.js` 的 `api` 为 fetch(`/api/character`)。
+- **接入后端**：见 `后端规划.md`（已 gitignore，不入库）。方案为「后端核心」：后端存储角色文件 + 资源列表并完成全部算式，前端仅做解析与展示；接口分 资源 / 角色 / （房间/多单位 预留）。
+  - 现阶段 `角色管理`、`新建角色`、`用户登录/登出` 均为占位 UI，待接后端后由真实数据驱动。
 - 迁移 Vue：把 `app.js` 渲染层替换为 Vue 模板，`character-config.js`/`store.js` 原样复用。
 - 派生值面板已实现（生命/意志/先攻/移动/三豁免）。后续可扩展：防御/护甲的装备与词条联动、更多豁免/抗性细分、敏感范围与基因锁熟练度的进阶规则接 Excel 余下列。
+- 「轮回之境」页预留，后续开发游戏组 / 房间 / 多单位施效。
 
 ## 七、版本记录
+
+### 2026-10-09 晚
+- **规则书**：`scripts/docx2md.py` 将 `Rules/*.docx` 转写为 Markdown → `src/content/rules/*.md`；新增 `js/rules.js`（零依赖 md 渲染器 + 规则书页：选择器 + 侧边竖向目录 + 滚动高亮），规则书页接入侧边栏。
+- **主页面**：打开网页默认进入 landing（主页面），侧边栏隐藏；「进入」按钮进入应用。
+- **侧边栏**：顶部「无限流」logo 点击回主页；底部新增用户栏（未登录 + 登出下拉，界面演示）。
+- **角色管理**（替代「角色卡」菜单）：按行展示角色占位数据（名称/总资源量/生命值/归属房间），定宽对齐；点击行进入该角色详情；右下角圆形「+」新建按钮（占位）。
+- **角色详情**：右上角蓝色「← 返回角色管理」按钮。
+- **轮回之境**：新增预留菜单项与占位页。
+- **清理**：删除 `docs/`（H5BP 模板文档）与 `docs/rules` 副本，规则书仅保留 `src/content/rules`；修复 `.gitignore`（`Rules`→`/Rules`）。
+- **后端规划**：新增 `后端规划.md`（已 gitignore）。
 
