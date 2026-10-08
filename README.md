@@ -153,12 +153,35 @@ python -m http.server 8080 --directory src   # 或 npx serve src
 ```
 访问 `http://localhost:8080`。（ES Module 需经静态服务器，无法 file:// 直开。）
 
-github pages 更新方式：
-在项目根目录下  
-git add .  
-git commit -m "更新页面"  
-git push origin main  
+github pages 更新方式（部署 `src/` 到 `InfWebPages`）：
+在项目根目录下，先在正常终端（非受限沙箱）里提交并推送：
+
+```powershell
+git add .
+git commit -m "更新页面"
+# 若本地分支是 master 而远端是 main，先同步主仓库（可选）
 git subtree push --prefix=src pages master:main
+```
+
+说明：
+- `pages` 远端已指向 `https://github.com/GeminiKunnn/InfWebPages.git`（`git remote -v` 可查）。
+- 若该环境 git 报 `schannel: AcquireCredentialsHandle failed: SEC_E_NO_CREDENTIALS`，
+  说明 git 用的 Windows schannel TLS 后端取不到证书，改用 OpenSSL 后端即可：
+  ```powershell
+  git -c http.sslBackend=openssl -c http.sslCAInfo="D:\Prog\Git\mingw64\etc\ssl\certs\ca-bundle.crt" subtree push --prefix=src pages master:main
+  ```
+- `git subtree` 依赖 msys `sh`，且写操作需要凭据（Git 凭据管理器），
+  因此在禁止 msys 运行的环境（如受限沙箱）中会失败（报 `NtCreateDirectoryObject ... 0xC0000022`），
+  请改到正常终端执行。
+
+> 备用：若 `git subtree` 不可用，可用纯 git 构造部署提交后直推 `main`：
+> ```powershell
+> $t = (git rev-parse HEAD:src)                 # 取 src/ 目录树
+> git fetch pages main                          # 更新远端 main 基线
+> $p = (git rev-parse pages/main)               # 远端 main 当前提交
+> $c = git commit-tree $t -p $p -m "deploy pages"
+> git -c http.sslBackend=openssl -c http.sslCAInfo="D:\Prog\Git\mingw64\etc\ssl\certs\ca-bundle.crt" push pages "${c}:refs/heads/main"
+> ```
 
 ## 六、未来规划
 - **接入后端**：见 `后端规划.md`（已 gitignore，不入库）。方案为「后端核心」：后端存储角色文件 + 资源列表并完成全部算式，前端仅做解析与展示；接口分 资源 / 角色 / （房间/多单位 预留）。
