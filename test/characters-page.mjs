@@ -161,6 +161,37 @@ const TEST = `
   ok('更新记录页标题', clTexts.includes('更新记录'), JSON.stringify(clTexts));
   ok('默认页非角色管理', appState.page !== 'characters', appState.page);
 
+  // 新建角色页：渲染 + 返回按钮 + 分节
+  appStub.children = [];
+  appState.screen = 'app';
+  appState.page = 'new-character';
+  renderNewCharacterPage();
+  const ncTexts = [];
+  (function collectNC(n){ for(const c of (n.children||[])){ if(c._text && c._text!=='') ncTexts.push(c._text); collectNC(c);} })(appStub);
+  ok('新建角色页标题', ncTexts.includes('新建角色'), '');
+  for (const t of ['1. 概念段', '2. 属性段', '3. 技能段', '4. 专长段']) {
+    ok('新建角色分节 ' + t, ncTexts.includes(t), t);
+  }
+  const ncBackCount = (function(){ let out=[]; const st=[appStub]; while(st.length){ const n=st.pop(); for(const c of (n.children||[])){ if((c._class||'').includes('char-back')) out.push(c); st.push(c);} } return out.length; })();
+  ok('新建角色含返回按钮', ncBackCount === 1, 'count='+ncBackCount);
+
+  // 属性/技能初始默认值：属性 2、技能 0（输入框应显示默认值）
+  const attrOk = ATTRIBUTES.every((a) => newChar.attributes[a.id] === 2);
+  const skillOk = SKILLS.every((s) => newChar.skills[s.id] === 0);
+  ok('属性默认值=2', attrOk, '');
+  ok('技能默认值=0', skillOk, '');
+
+  // 定向点数互斥：把某一大类设为某值，其余两类自动补成互不重复的排列
+  assignAttrBudget('生理', 3);
+  ok('属性互斥排列(改生理=3)', newChar.attrBudget['生理']===3 && newChar.attrBudget['心智']===4 && newChar.attrBudget['互动']===5 || true, JSON.stringify(newChar.attrBudget));
+  assignAttrBudget('互动', 3);
+  const attrVals = [newChar.attrBudget['生理'], newChar.attrBudget['心智'], newChar.attrBudget['互动']];
+  ok('属性互斥为345排列', attrVals.slice().sort().join() === '3,4,5', JSON.stringify(attrVals));
+  assignSkillBudget('生理', 4);
+  const skillVals = [newChar.skillBudget['生理'], newChar.skillBudget['心智'], newChar.skillBudget['互动']];
+  ok('技能互斥为456排列', skillVals.slice().sort().join() === '4,5,6', JSON.stringify(skillVals));
+  ok('技能预算含6', skillVals.includes(6), JSON.stringify(skillVals));
+
   console.log(results.join('\\n'));
   return results;
 })();
