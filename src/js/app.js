@@ -39,7 +39,7 @@ import {
 let character = emptyCharacter();
 
 /** 应用级导航状态：screen=界面层（landing 主页面 / app 应用界面）；page=应用内页面（角色管理/角色卡/规则书/其他）。 */
-const appState = { screen: 'landing', page: 'characters', activeChar: null };
+const appState = { screen: 'landing', page: 'changelog', activeChar: null };
 
 /** 角色卡内部「表单（sheet）切换」：当前激活的子面板。 */
 const sheetState = { active: 'main' };
@@ -47,8 +47,11 @@ const sheetState = { active: 'main' };
 /* ---------- 各可切换页面（底部菜单）与角色卡子面板（sheet 标签）的定义 ---------- */
 
 const PAGES = [
-  { id: 'characters', label: '角色管理' },
+  { id: 'changelog', label: '更新记录' },
   { id: 'rules', label: '规则书' },
+  { id: 'resources', label: '资源列表' },
+  { id: 'characters', label: '角色管理' },
+  { id: 'realm', label: '轮回之境' },
   { id: 'other', label: '其他' },
 ];
 
@@ -1839,8 +1842,16 @@ function renderOtherPage() {
   renderEmptyPage('其他', '预留页面，暂无内容。');
 }
 
+function renderResourcesPage() {
+  renderEmptyPage('资源列表', '资源列表页面预留，后续展示后端资源目录（各资源的 bonus 与描述）。');
+}
+
 function renderRealmPage() {
   renderEmptyPage('轮回之境', '轮回之境页面预留，后续开发：游戏组 / 房间 / 多单位施效等。');
+}
+
+function renderChangelogPage() {
+  renderEmptyPage('更新记录', '更新记录页面预留，暂无内容。');
 }
 
 /* ------------------------- 主页面（landing） ------------------------- */
@@ -1966,6 +1977,8 @@ function renderPage() {
   if (appState.page === 'characters') renderCharactersPage();
   else if (appState.page === 'character') renderCharacterPage();
   else if (appState.page === 'rules') renderRulesPage();
+  else if (appState.page === 'resources') renderResourcesPage();
+  else if (appState.page === 'changelog') renderChangelogPage();
   else if (appState.page === 'other') renderOtherPage();
   else if (appState.page === 'realm') renderRealmPage();
 }
@@ -2059,7 +2072,7 @@ function setupGlobalEvent() {
       return;
     }
 
-    // 主页面「进入」→ 进入应用界面（默认应用内页面为角色卡）
+    // 主页面「进入」→ 进入应用界面（默认应用内页面为更新记录）
     if (e.target.closest('[data-action="enter-app"]')) {
       appState.screen = 'app';
       renderPage();
@@ -2169,7 +2182,7 @@ async function boot() {
 
   // 打开网页默认进入主页面（landing），由用户点击「进入」再到应用界面。
   appState.screen = 'landing';
-  appState.page = 'characters';
+  appState.page = 'changelog';
   renderPage();
   setupGlobalEvent();
 }

@@ -163,26 +163,6 @@ git commit -m "更新页面"
 git subtree push --prefix=src pages master:main
 ```
 
-说明：
-- `pages` 远端已指向 `https://github.com/GeminiKunnn/InfWebPages.git`（`git remote -v` 可查）。
-- 若该环境 git 报 `schannel: AcquireCredentialsHandle failed: SEC_E_NO_CREDENTIALS`，
-  说明 git 用的 Windows schannel TLS 后端取不到证书，改用 OpenSSL 后端即可：
-  ```powershell
-  git -c http.sslBackend=openssl -c http.sslCAInfo="D:\Prog\Git\mingw64\etc\ssl\certs\ca-bundle.crt" subtree push --prefix=src pages master:main
-  ```
-- `git subtree` 依赖 msys `sh`，且写操作需要凭据（Git 凭据管理器），
-  因此在禁止 msys 运行的环境（如受限沙箱）中会失败（报 `NtCreateDirectoryObject ... 0xC0000022`），
-  请改到正常终端执行。
-
-> 备用：若 `git subtree` 不可用，可用纯 git 构造部署提交后直推 `main`：
-> ```powershell
-> $t = (git rev-parse HEAD:src)                 # 取 src/ 目录树
-> git fetch pages main                          # 更新远端 main 基线
-> $p = (git rev-parse pages/main)               # 远端 main 当前提交
-> $c = git commit-tree $t -p $p -m "deploy pages"
-> git -c http.sslBackend=openssl -c http.sslCAInfo="D:\Prog\Git\mingw64\etc\ssl\certs\ca-bundle.crt" push pages "${c}:refs/heads/main"
-> ```
-
 ## 六、未来规划
 - **接入后端**：见 `后端规划.md`（已 gitignore，不入库）。方案为「后端核心」：后端存储角色文件 + 资源列表并完成全部算式，前端仅做解析与展示；接口分 资源 / 角色 / （房间/多单位 预留）。
   - 现阶段 `角色管理`、`新建角色`、`用户登录/登出` 均为占位 UI，待接后端后由真实数据驱动。

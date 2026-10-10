@@ -137,6 +137,30 @@ const TEST = `
   (function collect(n){ for(const c of (n.children||[])){ if(c._text && c._text!=='') realmTexts.push(c._text); collect(c);} })(appStub);
   ok('轮回之境页标题', realmTexts.includes('轮回之境'), JSON.stringify(realmTexts));
 
+  // 资源列表预留页
+  appStub.children = [];
+  appState.screen = 'app';
+  appState.page = 'resources';
+  renderResourcesPage();
+  const resTexts = [];
+  (function collect2(n){ for(const c of (n.children||[])){ if(c._text && c._text!=='') resTexts.push(c._text); collect2(c);} })(appStub);
+  ok('资源列表页标题', resTexts.includes('资源列表'), JSON.stringify(resTexts));
+
+  // 更新记录为进入应用后的默认页：模拟 boot 初始态 + 「进入」流程
+  appStub.children = [];
+  // boot() 初始化：主页面 + 默认应用页 changelog
+  appState.screen = 'landing';
+  appState.page = 'changelog';
+  ok('启动后默认应用页为changelog', appState.page === 'changelog', appState.page);
+  // 模拟点击「进入」：只切 screen，保持 page
+  appState.screen = 'app';
+  ok('进入后仍为changelog（非角色管理）', appState.page === 'changelog', appState.page);
+  renderChangelogPage();
+  const clTexts = [];
+  (function collect3(n){ for(const c of (n.children||[])){ if(c._text && c._text!=='') clTexts.push(c._text); collect3(c);} })(appStub);
+  ok('更新记录页标题', clTexts.includes('更新记录'), JSON.stringify(clTexts));
+  ok('默认页非角色管理', appState.page !== 'characters', appState.page);
+
   console.log(results.join('\\n'));
   return results;
 })();
