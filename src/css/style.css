@@ -1958,7 +1958,12 @@ body {
   font-size: 14px;
   line-height: 1.7;
   color: #3a3f4a;
-  white-space: normal;
+}
+.changelog-content .changelog-paragraph {
+  margin: 0;
+}
+.changelog-content .changelog-paragraph + .changelog-paragraph {
+  margin-top: 8px;
 }
 .changelog-error {
   padding: 16px 18px;

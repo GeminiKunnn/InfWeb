@@ -2315,9 +2315,23 @@ function buildChangelogRows(host, entries) {
     head.appendChild(el('span', { class: 'changelog-title', text: e.title || '' }));
     head.appendChild(el('span', { class: 'changelog-date', text: fmtDate(e.date) }));
     row.appendChild(head);
-    row.appendChild(el('p', { class: 'changelog-content', text: e.content || '' }));
+    const body = el('div', { class: 'changelog-content' });
+    // content 支持两种写法：字符串（旧，按 \n 拆段兼容）或数组（新，每个元素一段）。空段自动跳过。
+    schemaifyChangelogContent(e.content).forEach((seg) => {
+      const t = seg.trim();
+      if (!t) return;
+      body.appendChild(el('p', { class: 'changelog-paragraph', text: t }));
+    });
+    if (body.children.length === 0) body.appendChild(el('p', { class: 'changelog-paragraph', text: '' }));
+    row.appendChild(body);
     host.appendChild(row);
   }
+}
+
+// 把 changelog 的 content 规整成段落数组：数组→按元素；字符串（旧格式）→按 \n 拆且视为单元素兼容。
+function schemaifyChangelogContent(content) {
+  if (Array.isArray(content)) return content.slice();
+  return String(content == null ? '' : content).split(/\r?\n/);
 }
 
 // 时间格式化：仅显示年月日（2016-10-09 或 2016/10/09 皆可），空则显示空字符串。
@@ -2440,6 +2454,8 @@ function renderPage() {
 
   // 主页面：只显示 landing，不渲染应用内页面（也避免高亮菜单项）
   if (appState.screen === 'landing') {
+    // 回到主界面即清除已保存的应用内位置，下次刷新仍为主界面
+    try { localStorage.removeItem(APPSTATE_KEY); } catch (e) {}
     renderLandingPage();
     return;
   }
@@ -2458,6 +2474,33 @@ function renderPage() {
   else if (appState.page === 'changelog') renderChangelogPage();
   else if (appState.page === 'other') renderOtherPage();
   else if (appState.page === 'realm') renderRealmPage();
+
+  // 记住当前应用内页面位置，供刷新后恢复（仅页面位置，不保存任何编辑数据）
+  saveAppState();
+}
+
+/* -------- 应用状态持久化（仅记页面位置，不存数据） -------- */
+const APPSTATE_KEY = 'infweb.appstate';
+function saveAppState() {
+  if (appState.screen !== 'app') return; // 仅在应用内记录
+  try {
+    localStorage.setItem(
+      APPSTATE_KEY,
+      JSON.stringify({ screen: appState.screen, page: appState.page, activeChar: appState.activeChar || null })
+    );
+  } catch (e) {
+    /* 忽略（隐私模式等） */
+  }
+}
+function restoreAppState() {
+  try {
+    const raw = localStorage.getItem(APPSTATE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    return s && s.screen === 'app' ? s : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 /* ------------------------- 侧边栏折叠 / 交互 ------------------------- */
@@ -2670,9 +2713,16 @@ async function boot() {
   const saved = await api.load();
   if (saved) character = saved;
 
-  // 打开网页默认进入主页面（landing），由用户点击「进入」再到应用界面。
-  appState.screen = 'landing';
-  appState.page = 'changelog';
+  // 若上次停留在应用界面（screen=app）则自动恢复该页面，否则进入主页面(landing)
+  const restored = restoreAppState();
+  if (restored) {
+    appState.screen = 'app';
+    appState.page = restored.page || 'changelog';
+    appState.activeChar = restored.activeChar || null;
+  } else {
+    appState.screen = 'landing';
+    appState.page = 'changelog';
+  }
   renderPage();
   setupGlobalEvent();
 }

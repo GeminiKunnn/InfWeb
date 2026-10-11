@@ -62,7 +62,7 @@ const sandbox = {
     getElementById: (id) => (id === 'app' ? appStub : (id === 'sidebar' ? sidebarStub : new FakeEl('div'))),
     body: new FakeEl('body'),
   },
-  localStorage: { getItem(){return null;}, setItem(){}, removeItem(){} },
+  localStorage: (function(){ let m = {}; return { getItem(k){ return Object.prototype.hasOwnProperty.call(m,k) ? m[k] : null; }, setItem(k,v){ m[k]=String(v); }, removeItem(k){ delete m[k]; }, clear(){ m={}; } }; })(),
 };
 sandbox.window = sandbox;
 sandbox.appStub = appStub;
@@ -163,6 +163,19 @@ const TEST = `
   ok('更新记录页标题', clTexts.includes('更新记录'), JSON.stringify(clTexts));
   ok('默认页非角色管理', appState.page !== 'characters', appState.page);
 
+  // 应用状态持久化：仅记页面位置（screen=app / page / activeChar），不存数据
+  appState.screen = 'app';
+  appState.page = 'rules';
+  appState.activeChar = 'c1';
+  saveAppState();
+  appState.page = 'other'; // 模拟切到别处
+  const restored = restoreAppState();
+  ok('恢复上次应用页(rules)', restored && restored.screen === 'app' && restored.page === 'rules', JSON.stringify(restored));
+  ok('恢复记录角色id', restored && restored.activeChar === 'c1', JSON.stringify(restored));
+  // 回到主界面(langind)会清除保存的应用内位置（renderPage 的 landing 分支会 removeItem）
+  localStorage.removeItem('infweb.appstate');
+  ok('清除后无可恢复状态', restoreAppState() === null, JSON.stringify(restoreAppState()));
+
   // 更新记录列表渲染：标题 / 内容 / 时间年月日，且最新（数组靠后）显示在最上
   const clHost = new FakeEl('div');
   buildChangelogRows(clHost, [
@@ -176,6 +189,31 @@ const TEST = `
   ok('更新列表含年月日', clAll.includes('2026-10-09'), JSON.stringify(clAll));
   ok('最新(数组靠后)显示在最上方', clAll.indexOf('更新B') < clAll.indexOf('更新A'), JSON.stringify(clAll));
   ok('时间格式化(x/缺省也规整)', fmtDate('2026/7/3') === '2026-07-03' && fmtDate('') === '', fmtDate('2026/7/3'));
+
+  // 更新内容多行：换行符拆成多个段落，空行跳过
+  const clML = new FakeEl('div');
+  buildChangelogRows(clML, [{ title: 'T', content: '行一\\n\\n行二\\n行三', date: '2026-10-09' }]);
+  const mlPs = [];
+  (function collectP(n){ for(const c of (n.children||[])){ if((c._class||'').includes('changelog-paragraph')) mlPs.push((c._text||'')); collectP(c);} })(clML);
+  ok('多行拆分数(3段,空行跳过)', mlPs.length === 3, JSON.stringify(mlPs));
+  ok('多行第一段', mlPs.includes('行一'), JSON.stringify(mlPs));
+  ok('多行第二段', mlPs[1] === '行二', JSON.stringify(mlPs));
+  ok('多行第三段', mlPs[2] === '行三', JSON.stringify(mlPs));
+
+  // 更新内容数组写法：每个元素一段，空元素跳过
+  const clArr = new FakeEl('div');
+  buildChangelogRows(clArr, [{ title: 'T', content: ['甲段', '', '乙段', '丙段'], date: '2026-10-09' }]);
+  const arrPs = [];
+  (function collectPA(n){ for(const c of (n.children||[])){ if((c._class||'').includes('changelog-paragraph')) arrPs.push((c._text||'')); collectPA(c);} })(clArr);
+  ok('数组写法拆段数(空元素跳过)', arrPs.length === 3, JSON.stringify(arrPs));
+  ok('数组首段', arrPs[0] === '甲段', JSON.stringify(arrPs));
+
+  // 单字符串兼容：只有一行也正常
+  const clOne = new FakeEl('div');
+  buildChangelogRows(clOne, [{ title: 'T', content: '仅一行', date: '2026-10-09' }]);
+  const onePs = [];
+  (function collectPO(n){ for(const c of (n.children||[])){ if((c._class||'').includes('changelog-paragraph')) onePs.push((c._text||'')); collectPO(c);} })(clOne);
+  ok('单行字符串=单段', onePs.length === 1 && onePs[0] === '仅一行', JSON.stringify(onePs));
 
   // 更新列表空则提示
   const clEmpty = new FakeEl('div');
@@ -229,10 +267,11 @@ vm.runInNewContext(src + '\n' + TEST, sandbox);
   catch (e) { console.log('FAIL changelog.json 可解析 :: ' + e.message); return; }
   if (!Array.isArray(entries) || !entries.length) { console.log('FAIL changelog.json 应为非空数组'); return; }
   let bad = 0;
+  const contentOk = (c) => (typeof c === 'string') || (Array.isArray(c) && c.every((x) => typeof x === 'string'));
   entries.forEach((e, i) => {
     const okShape = e && typeof e === 'object' &&
       typeof e.title === 'string' && e.title.length > 0 &&
-      typeof e.content === 'string' &&
+      contentOk(e.content) &&
       (typeof e.date === 'string' && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(e.date));
     if (!okShape) { bad++; console.log(`FAIL changelog[${i}] 结构不合法 :: ` + JSON.stringify(e)); }
   });
