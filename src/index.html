@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>无限流角色卡</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261011-multiline">
   <meta name="description" content="参考 Rules 规则建立的无限流角色卡网页。">
 
   <!-- ============================================================
@@ -93,8 +93,8 @@
 
   </div>
 
-  <!-- 脚本改为 ES Module，以支持 import（依赖各模块文件需经静态服务器访问） -->
-  <script type="module" src="js/app.js"></script>
+  <!-- 脚本改为 ES Module，以支持 import（?v= 用于规避 CDN/浏览器对旧版 app.js 的强缓存） -->
+  <script type="module" src="js/app.js?v=20261011-multiline"></script>
 
 </body>
 
