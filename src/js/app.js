@@ -2251,8 +2251,62 @@ function renderRealmPage() {
   renderEmptyPage('轮回之境', '轮回之境页面预留，后续开发：游戏组 / 房间 / 多单位施效等。');
 }
 
-function renderChangelogPage() {
-  renderEmptyPage('更新记录', '更新记录页面预留，暂无内容。');
+async function renderChangelogPage() {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  app.appendChild(
+    el('header', { class: 'masthead' }, [
+      el('h1', { text: '更新记录' }),
+      el('p', { class: 'subtitle', text: '版本与功能更新一览' }),
+    ])
+  );
+
+  const listEl = el('div', { class: 'changelog-list' });
+  app.appendChild(listEl);
+
+  try {
+    const res = await fetch('content/updates/changelog.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const entries = await res.json();
+    buildChangelogRows(listEl, entries);
+  } catch (err) {
+    listEl.appendChild(
+      el('div', { class: 'changelog-error' }, [
+        el('span', { class: 'muted', text: '更新记录加载失败：' + err.message }),
+      ])
+    );
+  }
+}
+
+// 把 changelog 条目渲染进列表容器（同步、可独立测试）。
+// 约定：JSON 数组中越靠上方=越旧、越靠下方=越新；页面展示时最新在上（倒序遍历）。
+function buildChangelogRows(host, entries) {
+  host.innerHTML = '';
+  if (!Array.isArray(entries) || !entries.length) {
+    host.appendChild(el('p', { class: 'muted', text: '暂无更新记录。' }));
+    return;
+  }
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    const row = el('div', { class: 'changelog-item' });
+    const head = el('div', { class: 'changelog-head' });
+    head.appendChild(el('span', { class: 'changelog-title', text: e.title || '' }));
+    head.appendChild(el('span', { class: 'changelog-date', text: fmtDate(e.date) }));
+    row.appendChild(head);
+    row.appendChild(el('p', { class: 'changelog-content', text: e.content || '' }));
+    host.appendChild(row);
+  }
+}
+
+// 时间格式化：仅显示年月日（2016-10-09 或 2016/10/09 皆可），空则显示空字符串。
+function fmtDate(d) {
+  if (!d) return '';
+  const s = String(d).trim();
+  // 已形如 YYYY-MM-DD
+  const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+  return s;
 }
 
 /* ------------------------- 主页面（landing） ------------------------- */

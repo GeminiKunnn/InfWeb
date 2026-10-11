@@ -51,6 +51,7 @@ sidebarStub.classList.add('sidebar');
 
 const sandbox = {
   console, Math, Number, String, Array, Object, JSON, Date, setTimeout, clearTimeout,
+  fetch: () => Promise.reject(new Error('stub-no-fetch')),
   document: {
     readyState: 'loading',
     createElement: (t) => new FakeEl(t),
@@ -66,6 +67,7 @@ const sandbox = {
 sandbox.window = sandbox;
 sandbox.appStub = appStub;
 sandbox.sidebarStub = sidebarStub;
+sandbox.FakeEl = FakeEl;
 vm.createContext(sandbox);
 
 const TEST = `
@@ -161,6 +163,27 @@ const TEST = `
   ok('更新记录页标题', clTexts.includes('更新记录'), JSON.stringify(clTexts));
   ok('默认页非角色管理', appState.page !== 'characters', appState.page);
 
+  // 更新记录列表渲染：标题 / 内容 / 时间年月日，且最新（数组靠后）显示在最上
+  const clHost = new FakeEl('div');
+  buildChangelogRows(clHost, [
+    { title: '更新A', content: '内容甲', date: '2026-10-08' },
+    { title: '更新B', content: '内容乙', date: '2026-10-09' },
+  ]);
+  let clAll = [];
+  (function collectC(n){ for(const c of (n.children||[])){ if(c._text && c._text!=='') clAll.push(c._text); collectC(c);} })(clHost);
+  ok('更新列表含标题', clAll.includes('更新A') && clAll.includes('更新B'), JSON.stringify(clAll));
+  ok('更新列表含内容', clAll.includes('内容甲') && clAll.includes('内容乙'), JSON.stringify(clAll));
+  ok('更新列表含年月日', clAll.includes('2026-10-09'), JSON.stringify(clAll));
+  ok('最新(数组靠后)显示在最上方', clAll.indexOf('更新B') < clAll.indexOf('更新A'), JSON.stringify(clAll));
+  ok('时间格式化(x/缺省也规整)', fmtDate('2026/7/3') === '2026-07-03' && fmtDate('') === '', fmtDate('2026/7/3'));
+
+  // 更新列表空则提示
+  const clEmpty = new FakeEl('div');
+  buildChangelogRows(clEmpty, []);
+  let clE = [];
+  (function collectCE(n){ for(const c of (n.children||[])){ if(c._text && c._text!=='') clE.push(c._text); collectCE(c);} })(clEmpty);
+  ok('更新列表空提示', clE.includes('暂无更新记录。'), JSON.stringify(clE));
+
   // 新建角色页：渲染 + 返回按钮 + 分节
   appStub.children = [];
   appState.screen = 'app';
@@ -197,3 +220,21 @@ const TEST = `
 })();
 `;
 vm.runInNewContext(src + '\n' + TEST, sandbox);
+
+// ---- 宿主侧：校验真实 changelog.json 数据源结构 ----
+(function checkChangelogJson() {
+  const jp = path.join(__dirname, '..', 'src', 'content', 'updates', 'changelog.json');
+  let entries;
+  try { entries = JSON.parse(fs.readFileSync(jp, 'utf8')); }
+  catch (e) { console.log('FAIL changelog.json 可解析 :: ' + e.message); return; }
+  if (!Array.isArray(entries) || !entries.length) { console.log('FAIL changelog.json 应为非空数组'); return; }
+  let bad = 0;
+  entries.forEach((e, i) => {
+    const okShape = e && typeof e === 'object' &&
+      typeof e.title === 'string' && e.title.length > 0 &&
+      typeof e.content === 'string' &&
+      (typeof e.date === 'string' && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(e.date));
+    if (!okShape) { bad++; console.log(`FAIL changelog[${i}] 结构不合法 :: ` + JSON.stringify(e)); }
+  });
+  console.log((bad ? 'FAIL' : 'PASS') + ` changelog.json 结构校验 (entries=${entries.length}, bad=${bad})`);
+})();
