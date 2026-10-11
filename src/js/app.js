@@ -2266,7 +2266,9 @@ async function renderChangelogPage() {
   app.appendChild(listEl);
 
   try {
-    const res = await fetch('content/updates/changelog.json', { cache: 'no-cache' });
+    // 用「相对于站点根」的绝对路径拉取，兼容本地(/)与 GitHub Pages(/InfWebPages/) 子路径部署。
+    // 附加一个时间戳参数，规避浏览器/CDN 对旧 changelog.json 的强缓存。
+    const res = await fetch(assetPath('content/updates/changelog.json') + '?v=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const entries = await res.json();
     buildChangelogRows(listEl, entries);
@@ -2277,6 +2279,25 @@ async function renderChangelogPage() {
       ])
     );
   }
+}
+
+// 依据当前文档 URL 推导站点根，再拼上相对路径（返回可 fetch 的绝对路径）。
+// 兼容：本地 http://host/ 与 GitHub Pages http://host/InfWebPages/ 子路径；即使地址栏缺尾斜杠也能纠正。
+function assetPath(relative) {
+  let base;
+  try {
+    base = new URL('.', document.baseURI).href;
+  } catch (e) {
+    base = location.href;
+  }
+  // 若解析到的根不含子路径（如地址栏无尾斜杠导致 . 落到上级），改从 location 推导目录
+  const url = new URL(base);
+  if (!url.pathname.endsWith('/')) {
+    const p = (location.pathname.split('?')[0] || '/');
+    const dir = p.slice(0, p.lastIndexOf('/') + 1);
+    return new URL(dir + relative, location.href).href;
+  }
+  return new URL(relative, url).href;
 }
 
 // 把 changelog 条目渲染进列表容器（同步、可独立测试）。
