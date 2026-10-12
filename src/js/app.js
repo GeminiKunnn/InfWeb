@@ -1816,10 +1816,10 @@ function renderCharacterPage() {
 
   renderSheetBody(host);
 
-  // 操作条（保存 / 重置）
+  // 操作条（导出 / 删除角色卡）
   const actions = el('div', { class: 'action-bar' });
-  actions.appendChild(actionButton('保存到本地', { action: 'save' }));
-  actions.appendChild(actionButton('重置角色卡', { action: 'reset' }, 'btn-ghost'));
+  actions.appendChild(actionButton('导出角色卡', { action: 'save' }));
+  actions.appendChild(actionButton('删除角色卡', { action: 'delete-character' }, 'btn-danger'));
   app.appendChild(actions);
 }
 
@@ -2224,6 +2224,115 @@ function confirmLeaveNewCharacter() {
   document.body.appendChild(overlay);
 }
 
+/* ----- 导入角色卡弹窗（两阶段骨架，真实解析/后端暂未实现） -----
+   阶段一：选择文件 → 点击「确定」；
+   阶段二：展示解析概要 → 点击「确认导入」→ 向远端发送申请。 */
+function openImportDialog() {
+  const existing = document.getElementById('import-dialog');
+  if (existing) existing.remove();
+
+  const overlay = el('div', { class: 'modal-overlay', id: 'import-dialog' });
+  const box = el('div', { class: 'modal import-modal' });
+  box.appendChild(el('h3', { text: '导入角色卡' }));
+
+  // 阶段一：选择文件
+  const stage1 = el('div', { class: 'import-stage', id: 'import-stage-1' });
+  stage1.appendChild(
+    el('p', { class: 'muted', text: '选择一份角色卡文件，点击「确定」后进行解析预览。' })
+  );
+  const fileRow = el('label', { class: 'import-file' }, [
+    el('span', { class: 'import-file-label', text: '选择文件' }),
+    el('input', { type: 'file', id: 'import-file-input', accept: '.json,.txt,.character' }),
+  ]);
+  stage1.appendChild(fileRow);
+  const stage1Actions = el('div', { class: 'modal-actions' });
+  const close1 = el('button', { type: 'button', class: 'btn btn-ghost', text: '取消' });
+  close1.addEventListener('click', () => overlay.remove());
+  const confirm1 = el('button', { type: 'button', class: 'btn', text: '确定' });
+  confirm1.addEventListener('click', () => {
+    // 预留：读取文件 → 解析 → 填充概要。当前仅切换阶段并显示占位概要。
+    const fileInput = document.getElementById('import-file-input');
+    const fileName = (fileInput && fileInput.files && fileInput.files[0] && fileInput.files[0].name) || '未选择文件';
+    stage1.hidden = true;
+    if (stage2) stage2.hidden = false;
+    const summaryFileEl = document.getElementById('import-summary-file');
+    if (summaryFileEl) summaryFileEl.textContent = fileName;
+  });
+  stage1Actions.appendChild(close1);
+  stage1Actions.appendChild(confirm1);
+  stage1.appendChild(stage1Actions);
+
+  // 阶段二：解析概要（示例信息；真实文件解析尚未实现）
+  const stage2 = el('div', { class: 'import-stage', id: 'import-stage-2', hidden: true });
+  stage2.appendChild(el('p', { class: 'muted', text: '解析完成，以下是该角色卡的概要信息（示例）。' }));
+  const summary = el('div', { class: 'import-summary' });
+  summary.appendChild(el('div', { class: 'import-summary-row' }, [
+    el('span', { class: 'import-summary-key', text: '文件' }),
+    el('span', { class: 'import-summary-val', id: 'import-summary-file', text: '—' }),
+  ]));
+  // 概要字段：角色名称 / 总资源量 / HP上限（当前为示例信息）
+  [
+    ['角色名称', '示例·导入者'],
+    ['总资源量', 'XD+XXXX'],
+    ['HP 上限', '30'],
+  ].forEach(([k, v]) => {
+    summary.appendChild(el('div', { class: 'import-summary-row' }, [
+      el('span', { class: 'import-summary-key', text: k }),
+      el('span', { class: 'import-summary-val', text: v }),
+    ]));
+  });
+  stage2.appendChild(summary);
+
+  const stage2Actions = el('div', { class: 'modal-actions' });
+  const back2 = el('button', { type: 'button', class: 'btn btn-ghost', text: '返回' });
+  back2.addEventListener('click', () => {
+    stage2.hidden = true;
+    if (stage1) stage1.hidden = false;
+  });
+  const accept2 = el('button', { type: 'button', class: 'btn', text: '确认导入' });
+  accept2.addEventListener('click', () => {
+    // 预留：此处应向远端 POST /api/characters/import 递交解析结果。当前仅提示。
+    flash('已发送导入申请（骨架：后端接入后将从这里创建并保存角色）');
+    overlay.remove();
+  });
+  stage2Actions.appendChild(back2);
+  stage2Actions.appendChild(accept2);
+  stage2.appendChild(stage2Actions);
+
+  box.appendChild(stage1);
+  box.appendChild(stage2);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+/* ----- 删除角色卡确认弹窗（暂不实现实际删除，将来向后端发送删除申请） ----- */
+function confirmDeleteCharacter() {
+  const existing = document.getElementById('delete-dialog');
+  if (existing) existing.remove();
+
+  const overlay = el('div', { class: 'modal-overlay', id: 'delete-dialog' });
+  const box = el('div', { class: 'modal' });
+  box.appendChild(el('h3', { text: '删除角色卡' }));
+  box.appendChild(el('p', { class: 'muted', text: '是否确定要删除？' }));
+
+  const btns = el('div', { class: 'modal-actions' });
+  const cancel = el('button', { type: 'button', class: 'btn btn-ghost', text: '取消' });
+  cancel.addEventListener('click', () => overlay.remove());
+  const confirm = el('button', { type: 'button', class: 'btn btn-danger', text: '确定' });
+  confirm.addEventListener('click', () => {
+    // 预留：此处应向远端 DELETE /api/characters/:id 发送删除申请。当前仅提示并返回角色管理。
+    overlay.remove();
+    flash('已发送删除申请（骨架：后端接入后将从这里删除角色）');
+    appState.page = 'characters';
+    renderPage();
+  });
+  btns.appendChild(cancel);
+  btns.appendChild(confirm);
+  box.appendChild(btns);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
 /* ------------------------- 其它页面（规则书 / 其他） ------------------------- */
 
 function renderEmptyPage(title, note) {
@@ -2437,6 +2546,17 @@ function renderCharactersPage() {
   app.appendChild(list);
   app.appendChild(el('div', { class: 'char-empty-note', text: '（以上为占位数据仅作展示）' }));
 
+  // 右下角悬浮「导入角色卡」（在「＋ 新建」左侧）+「新建角色」按钮
+  const importBtn = el('button', {
+    type: 'button',
+    class: 'fab fab-import',
+    dataset: { action: 'open-import' },
+    title: '导入角色卡',
+    ariaLabel: '导入角色卡',
+  });
+  importBtn.appendChild(el('span', { class: 'fab-import-icon', text: '⬇' }));
+  app.appendChild(importBtn);
+
   // 右下角悬浮「新建角色」按钮
   const fab = el('button', {
     type: 'button',
@@ -2642,6 +2762,12 @@ function setupGlobalEvent() {
       return;
     }
 
+    // 导入角色卡：打开导入弹窗
+    if (e.target.closest('[data-action="open-import"]')) {
+      openImportDialog();
+      return;
+    }
+
     // 新建角色页：确认返回（进度不保留）
     const cancelCreate = e.target.closest('[data-action="cancel-new-character"]');
     if (cancelCreate) {
@@ -2675,12 +2801,9 @@ function setupGlobalEvent() {
     const act = btn.dataset.action;
     if (act === 'save') {
       const ok = api.save(character);
-      flash(ok ? '✔ 已保存到本地' : '✘ 保存失败');
-    } else if (act === 'reset') {
-      if (!window.confirm('确定重置整张角色卡？此操作不可撤销。')) return;
-      character = emptyCharacter();
-      renderPage();
-      flash('已重置');
+      flash(ok ? '✔ 角色卡已导出' : '✘ 导出失败');
+    } else if (act === 'delete-character') {
+      confirmDeleteCharacter();
     } else if (act === 'add-spell') addSpellRow();
     else if (act === 'add-attack') addAttackRow();
     else if (act === 'add-energy') addEnergyRow();

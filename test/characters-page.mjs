@@ -99,12 +99,14 @@ const TEST = `
   const rooms = crows.map(r => findText(r,'char-room'));
   ok('归属房间(A)=房间1234', rooms[0][0] === '房间1234', JSON.stringify(rooms[0]));
   ok('归属房间(数量=6)', rooms.length === 6 && rooms.every(r=>r.length===1), JSON.stringify(rooms.map(r=>r[0])));
-  // 新建按钮
+  // 右下角悬浮：导入角色卡按钮 + 新建(+)按钮
   function findFabs(n){ let out=[]; for(const c of (n.children||[])){ if((c._class||'').split(' ').includes('fab')) out.push(c); out=out.concat(findFabs(c)); } return out; }
   const fabs = findFabs(appStub);
-  ok('悬浮新建按钮存在', fabs.length===1, 'fab='+fabs.length);
-  const plus = fabs.length ? fabs[0].children.find(c=>(c._class||'').includes('fab-plus')) : null;
-  ok('新建按钮内为+', plus && plus._text === '+', plus&&plus._text);
+  ok('悬浮按钮=2(导入+新建)', fabs.length===2, 'fab='+fabs.length);
+  ok('导入角色卡按钮存在', fabs.some(f=>(f._class||'').includes('fab-import')), fabs.map(f=>f._class).join('|'));
+  const plus = fabs.find(f=>(f._class||'').split(' ').includes('fab') && !(f._class||'').includes('fab-import'));
+  const plusChild = plus ? plus.children.find(c=>(c._class||'').includes('fab-plus')) : null;
+  ok('新建按钮内为+', !!plusChild && plusChild._text === '+', plusChild&&plusChild._text);
 
   // 点击占位行 → 打开角色卡页（page 切换）
   appState.page = 'characters';
