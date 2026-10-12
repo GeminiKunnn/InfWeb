@@ -691,26 +691,28 @@ const SAVE_DEFS = [
   { name: '强韧豁免', attr: 'stamina', skill: 'survival', attrName: '耐力', skillName: '求生', legName: '传奇耐力' },
 ];
 
-// 单个豁免的「附加成功 m」= 技能附加成功 + 主属性传奇附加成功 + 附加成功加值(bonus+3..+5)
+// 单个豁免的「附加成功 m」= 技能附加成功 + 主属性传奇附加成功 + 附加加值1..5(bonus+5..+9)
 function saveExtraSuccess(i) {
   const dd = character.derivedDetail.saves;
+  const b = dd.bonus;
   return (
     skillExtraSuccess(SAVE_DEFS[i].skill) + attrLegendary(SAVE_DEFS[i].attr) +
-    (Number(dd.bonus[i * 6 + 3]) || 0) + (Number(dd.bonus[i * 6 + 4]) || 0) +
-    (Number(dd.bonus[i * 6 + 5]) || 0)
+    (Number(b[i * 10 + 5]) || 0) + (Number(b[i * 10 + 6]) || 0) + (Number(b[i * 10 + 7]) || 0) +
+    (Number(b[i * 10 + 8]) || 0) + (Number(b[i * 10 + 9]) || 0)
   );
 }
 
 // 单个豁免的「总计 n」（不含附加成功）：
-// 属性检定 + 技能检定 + 传奇属性×3 + 专业 + 专长 + 加成1..3
+// 属性检定 + 技能检定 + 传奇属性×3 + 专业 + 专长 + 加成1..5
 function saveTotalOf(i) {
   const s = SAVE_DEFS[i];
   const dd = character.derivedDetail.saves;
+  const b = dd.bonus;
   return (
     attrValue(s.attr) + skillValue(s.skill) + attrLegendary(s.attr) * 3 +
     (Number(dd.special[i]) || 0) + (Number(dd.feat[i]) || 0) +
-    (Number(dd.bonus[i * 6]) || 0) + (Number(dd.bonus[i * 6 + 1]) || 0) +
-    (Number(dd.bonus[i * 6 + 2]) || 0)
+    (Number(b[i * 10]) || 0) + (Number(b[i * 10 + 1]) || 0) + (Number(b[i * 10 + 2]) || 0) +
+    (Number(b[i * 10 + 3]) || 0) + (Number(b[i * 10 + 4]) || 0)
   );
 }
 
@@ -750,9 +752,9 @@ function renderSavesPanel() {
         detailNumber(dd.feat[i], (v) => (dd.feat[i] = v), recompute),
       ])
     );
-    // 加成1..3（并入总计 n）
-    for (let k = 0; k < 3; k++) {
-      const idx = i * 6 + k;
+    // 加成1..5（并入总计 n）
+    for (let k = 0; k < 5; k++) {
+      const idx = i * 10 + k;
       row.appendChild(
         el('label', { class: 'detail-input' }, [
           el('span', { class: 'detail-input-label', text: `加成${k + 1}` }),
@@ -760,13 +762,13 @@ function renderSavesPanel() {
         ])
       );
     }
-    // 竖线分隔 + 右侧附加成功加值（加值1/2/3，计入 m；横向排布与主体 input 对齐）
+    // 竖线分隔 + 右侧附加加值（附加加值1/2/3/4/5，计入 m；横向排布与主体 input 对齐）
     const esc = el('div', { class: 'detail-extra-succ' });
-    for (let k = 3; k < 6; k++) {
-      const idx = i * 6 + k;
+    for (let k = 5; k < 10; k++) {
+      const idx = i * 10 + k;
       esc.appendChild(
         el('label', { class: 'detail-input' }, [
-          el('span', { class: 'detail-input-label', text: `加值${k - 2}` }),
+          el('span', { class: 'detail-input-label', text: `附加加值${k - 4}` }),
           detailNumber(dd.bonus[idx], (v) => (dd.bonus[idx] = v), recompute),
         ])
       );
@@ -902,13 +904,13 @@ function renderBaseAttackDetail() {
     }
     inp('其他', atk.other, (v) => (atk.other = v));
 
-    // 竖线分隔 + 右侧附加成功加值（加值1/2/3，计入 m；横向排布与主体 input 对齐）
+    // 竖线分隔 + 右侧附加成功加值（附加加值1..5，计入 m；与主体输入框同一横向/纵向对齐）
     const esc = el('div', { class: 'detail-extra-succ' });
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < 5; k++) {
       const j = k;
       esc.appendChild(
         el('label', { class: 'detail-input' }, [
-          el('span', { class: 'detail-input-label', text: `加值${k + 1}` }),
+          el('span', { class: 'detail-input-label', text: `附加加值${k + 1}` }),
           detailNumber(atk.extraSuccessBonus[k], (v) => (atk.extraSuccessBonus[j] = v), recompute),
         ])
       );
@@ -1355,7 +1357,7 @@ function renderAttackPanel(container) {
 
   const table = el('table', { class: 'dyn-table tbl-atk' });
   table.appendChild(
-    renderTitleRow(['名称', '检定DP', '属性', '技能', '武器伤害', '专业', '加成1', '加成2', '加成3', '加成4', '备注', ''])
+    renderTitleRow(['名称', '检定DP', '属性', '技能', '武器伤害', '专业', '加成1', '加成2', '加成3', '加成4', '加成5', '备注', ''])
   );
   const body = el('tbody', { id: 'attack-body' });
   table.appendChild(body);
@@ -1400,7 +1402,7 @@ function renderAttackRow(atk, index) {
   specTd.appendChild(numberInput({ value: atk.specialty, onChange: (v) => { atk.specialty = v; refresh(); } }));
   tr.appendChild(specTd);
 
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 5; k++) {
     const td = el('td');
     td.appendChild(numberInput({ value: atk.bonuses[k], onChange: (v) => { atk.bonuses[k] = v; refresh(); } }));
     tr.appendChild(td);
@@ -1431,12 +1433,12 @@ function energyTotal(pool) {
 function renderEnergyPanel(container) {
   container.innerHTML = '';
   const addBar = el('div', { class: 'add-bar' });
-  addBar.appendChild(el('span', { class: 'add-hint', text: '总值 = 关键属性1 + 关键属性2(可选) + 加成1 + 加成2 + 加成3' }));
+  addBar.appendChild(el('span', { class: 'add-hint', text: '总值 = 关键属性1 + 关键属性2(可选) + 加成1 + 加成2 + 加成3 + 加成4 + 加成5' }));
   addBar.appendChild(actionButton('＋ 添加一行', { action: 'add-energy' }));
   container.appendChild(addBar);
 
   const table = el('table', { class: 'dyn-table tbl-ene' });
-  table.appendChild(renderTitleRow(['名称', '总值', '关键属性1', '关键属性2', '加成1', '加成2', '加成3', '回复方式', '']));
+  table.appendChild(renderTitleRow(['名称', '总值', '关键属性1', '关键属性2', '加成1', '加成2', '加成3', '加成4', '加成5', '回复方式', '']));
   const body = el('tbody', { id: 'energy-body' });
   table.appendChild(body);
   container.appendChild(table);
@@ -1465,7 +1467,7 @@ function renderEnergyRow(pool, index, emptyOpts) {
   attr2Td.appendChild(select({ value: pool.attr2 || '', options: emptyOpts, onChange: (v) => { pool.attr2 = v; refresh(); } }));
   tr.appendChild(attr2Td);
 
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < 5; k++) {
     const td = el('td');
     td.appendChild(numberInput({ value: pool.bonuses[k], onChange: (v) => { pool.bonuses[k] = v; refresh(); } }));
     tr.appendChild(td);

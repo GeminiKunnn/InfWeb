@@ -76,15 +76,15 @@ function emptyCharacter() {
       initiative: { feat: 0, bonus: [0, 0, 0, 0, 0] },
       willpower: { feat: 0, bonus: [0, 0, 0, 0, 0] },
       health: { feat: 0, bonus: [0, 0, 0, 0, 0] },
-      saves: { special: [0, 0, 0], feat: [0, 0, 0], bonus: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, // 反射/意志/强韧：专业×3 + 专长×3 + 加成1-6 ×各自(共18位)
+      saves: { special: [0, 0, 0], feat: [0, 0, 0], bonus: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, // 反射/意志/强韧：专业×3 + 专长×3 + 加成1-5 + 附加加值1-5（各10位，共30）
       sensitive: { bonus: [0, 0, 0, 0, 0] }, // 敏感范围：加成1-5
     },
     baseAttacks: [
-      { id: 'whiteblade', label: '白刃攻击', attr: 'strength', skill: 'weaponry', weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0] },
-      { id: 'brawl', label: '肉搏攻击', attr: 'strength', skill: 'brawl', weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0] },
-      { id: 'semi', label: '半自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoDamage: 0, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0] },
-      { id: 'full', label: '全自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoCount: 1, weaponDamage: 0, ammoDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0] },
-      { id: 'bow', label: '弓箭攻击', attr: 'dexterity', skill: 'athletics', ammoDamage: 0, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0] },
+      { id: 'whiteblade', label: '白刃攻击', attr: 'strength', skill: 'weaponry', weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
+      { id: 'brawl', label: '肉搏攻击', attr: 'strength', skill: 'brawl', weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
+      { id: 'semi', label: '半自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoDamage: 0, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
+      { id: 'full', label: '全自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoCount: 1, weaponDamage: 0, ammoDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
+      { id: 'bow', label: '弓箭攻击', attr: 'dexterity', skill: 'athletics', ammoDamage: 0, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
     ],
     // —— 预留 ——
     derived: {}, // 未来：生命值 / 意志 / 先攻 / 移动力 / 豁免等
@@ -111,11 +111,11 @@ function newAttack() {
     skill: 'brawl',
     weaponDamage: 0,
     specialty: 0,
-    bonuses: [0, 0, 0, 0],
+    bonuses: [0, 0, 0, 0, 0],
   };
 }
 function newEnergyPool() {
-  return { name: '能量池', attr1: 'intelligence', attr2: '', bonuses: [0, 0, 0], recovery: '' };
+  return { name: '能量池', attr1: 'intelligence', attr2: '', bonuses: [0, 0, 0, 0, 0], recovery: '' };
 }
 function newPerk() {
   return { tier: 1, name: '', info: '' };
@@ -156,6 +156,21 @@ function normalize(raw) {
   if (!Array.isArray(merged.spellBaseBonuses)) merged.spellBaseBonuses = [0, 0, 0, 0, 0, 0];
   if (!Array.isArray(merged.specialAttacks)) merged.specialAttacks = [];
   if (!Array.isArray(merged.energyPools)) merged.energyPools = [];
+  // 特殊攻击 / 能量池的加成补到 5 个（加成1-5）
+  merged.specialAttacks = merged.specialAttacks.map((a) => {
+    const n = a && typeof a === 'object' ? { ...a } : newAttack();
+    n.bonuses = (n.bonuses || []).slice();
+    while (n.bonuses.length < 5) n.bonuses.push(0);
+    n.bonuses = n.bonuses.slice(0, 5).map((b) => Number(b) || 0);
+    return n;
+  });
+  merged.energyPools = merged.energyPools.map((p) => {
+    const n = p && typeof p === 'object' ? { ...p } : newEnergyPool();
+    n.bonuses = (n.bonuses || []).slice();
+    while (n.bonuses.length < 5) n.bonuses.push(0);
+    n.bonuses = n.bonuses.slice(0, 5).map((b) => Number(b) || 0);
+    return n;
+  });
   if (!Array.isArray(merged.perks)) merged.perks = [];
   if (!Array.isArray(merged.equipment)) merged.equipment = [];
   if (!Array.isArray(merged.traits)) merged.traits = [];
@@ -189,23 +204,33 @@ function normalize(raw) {
   if (!merged.derivedDetail.saves || typeof merged.derivedDetail.saves !== 'object') merged.derivedDetail.saves = empty.derivedDetail.saves;
   if (!Array.isArray(merged.derivedDetail.saves.special)) merged.derivedDetail.saves.special = [0, 0, 0];
   if (!Array.isArray(merged.derivedDetail.saves.feat)) merged.derivedDetail.saves.feat = [0, 0, 0];
-  // 豁免加成：每个豁免 6 个加成位 → 共 18 位（save i 用 bonus[i*6 .. i*6+5]）；保留原值并补齐
-  if (!Array.isArray(merged.derivedDetail.saves.bonus)) merged.derivedDetail.saves.bonus = [];
-  while (merged.derivedDetail.saves.bonus.length < 18) merged.derivedDetail.saves.bonus.push(0);
-  merged.derivedDetail.saves.bonus = merged.derivedDetail.saves.bonus.slice(0, 18).map((b) => Number(b) || 0);
+  // 豁免加成：每个豁免 10 个加成位（加成1-5 + 附加加值1-5）→ 共 30 位。
+  // save i 用 bonus[i*10 .. i*10+9]。旧数据为 6 位/豁免（加成1-3→前3，附加加值1-3→后3），此处做迁移。
+  {
+    const raw = Array.isArray(merged.derivedDetail.saves.bonus) ? merged.derivedDetail.saves.bonus : [];
+    const out = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < 3; i++) {
+      // 旧(6位)取 加成1-3 → 新 0..2；附加加值1-3 → 新 5..7
+      const oldBase = i * 6;      // 旧槽位
+      const newBase = i * 10;     // 新槽位
+      for (let k = 0; k < 3; k++) { out[newBase + k] = Number(raw[oldBase + k]) || 0; }
+      for (let k = 0; k < 3; k++) { out[newBase + 5 + k] = Number(raw[oldBase + 3 + k]) || 0; }
+    }
+    merged.derivedDetail.saves.bonus = out.map((b) => Number(b) || 0);
+  }
   // 敏感范围加成：补到 5 个
   if (!merged.derivedDetail.sensitive || typeof merged.derivedDetail.sensitive !== 'object') merged.derivedDetail.sensitive = empty.derivedDetail.sensitive;
   if (!Array.isArray(merged.derivedDetail.sensitive.bonus)) merged.derivedDetail.sensitive.bonus = [];
   while (merged.derivedDetail.sensitive.bonus.length < 5) merged.derivedDetail.sensitive.bonus.push(0);
   merged.derivedDetail.sensitive.bonus = merged.derivedDetail.sensitive.bonus.slice(0, 5).map((b) => Number(b) || 0);
-  // 基础攻击加成补到 5 + 其他 + 附加成功加成(3)
+  // 基础攻击加成补到 5 + 其他 + 附加成功加成(5)
   merged.baseAttacks = merged.baseAttacks.map((a) => {
     const clean = a && typeof a === 'object' ? { ...a } : { id: 'x', label: '攻击', attr: 'strength', skill: 'brawl', specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '' };
     while ((clean.bonuses || []).length < 5) clean.bonuses.push(0);
     if (clean.other == null) clean.other = 0;
     if (!Array.isArray(clean.extraSuccessBonus)) clean.extraSuccessBonus = [];
-    while (clean.extraSuccessBonus.length < 3) clean.extraSuccessBonus.push(0);
-    clean.extraSuccessBonus = clean.extraSuccessBonus.slice(0, 3).map((b) => Number(b) || 0);
+    while (clean.extraSuccessBonus.length < 5) clean.extraSuccessBonus.push(0);
+    clean.extraSuccessBonus = clean.extraSuccessBonus.slice(0, 5).map((b) => Number(b) || 0);
     return clean;
   });
   return merged;

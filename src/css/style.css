@@ -756,15 +756,20 @@ body {
   border-left: 4px solid var(--accent);
 }
 /* 加值区右侧竖线分隔的「附加成功加值」块（豁免 / 基础攻击共用）：
-   横向排列，加值输入框与主体输入框同一行对齐（不因标题文字下移错位） */
+   与主体输入同一套纵向布局（标题在上、输入框在下），并整体最右对齐 */
 .detail-extra-succ {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 6px 12px;
   margin-left: 2px;
   padding-left: 14px;
   border-left: 1px solid var(--line);
+  width: auto;
+}
+.detail-extra-succ .detail-input {
+  align-self: flex-start;
 }
 /* 小字标题，与加值输入框纵向对齐（贴底，位于输入框 label 高度层） */
 .detail-extra-succ-label {

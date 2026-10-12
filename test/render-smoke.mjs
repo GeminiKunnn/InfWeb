@@ -128,11 +128,11 @@ const TEST = `
   ok('反射豁免总值=n+m(17+2)', saveDisp('反射豁免') === '17+2', saveDisp('反射豁免'));
   ok('意志豁免总值=n+m(10+1)', saveDisp('意志豁免') === '10+1', saveDisp('意志豁免'));
   ok('强韧豁免总值=2(m0隐藏+m)', saveDisp('强韧豁免') === '2', saveDisp('强韧豁免'));
-  // 每个豁免框：主体 专业+专长+加成1..3，右侧附加成功 加值1..3（竖线分隔）
+  // 每个豁免框：主体 专业+专长+加成1..3，右侧附加加值 附加加值1..5（竖线分隔）
   const refRow = boxByTitle('反射豁免').querySelector('.detail-box-inputs');
   const labelTexts = refRow.querySelectorAll('.detail-input-label').map(l=>l._text);
-  ok('豁免框含专业/专长/加成1..3+加值1..3', JSON.stringify(labelTexts) === JSON.stringify(['专业','专长','加成1','加成2','加成3','加值1','加值2','加值3']), labelTexts);
-  ok('豁免框输入数=8(主体5+附加成功3)', refRow.querySelectorAll('.detail-input').length === 8, refRow.querySelectorAll('.detail-input').length);
+  ok('豁免框含专业/专长/加成1..5+附加加值1..5', JSON.stringify(labelTexts) === JSON.stringify(['专业','专长','加成1','加成2','加成3','加成4','加成5','附加加值1','附加加值2','附加加值3','附加加值4','附加加值5']), labelTexts);
+  ok('豁免框输入数=12(主体7+附加加值5)', refRow.querySelectorAll('.detail-input').length === 12, refRow.querySelectorAll('.detail-input').length);
   ok('豁免框附加成功区存在(带竖线)', !!boxByTitle('反射豁免').querySelector('.detail-extra-succ'), 'extra-succ');
   ok('豁免框附加成功小字已删除(灰线右侧无文字)', !boxByTitle('反射豁免').querySelector('.detail-extra-succ-label'), 'label removed');
   const refTip = boxByTitle('反射豁免').querySelector('.detail-tip');
@@ -202,8 +202,8 @@ const TEST = `
     ok('白刃攻击总值=2(m0隐藏+m)', atkTotal === '2', atkTotal);
     ok('白刃攻击含右侧附加成功区', !!atkBox.querySelector('.detail-extra-succ'), 'extra-succ');
     const atkLabels = atkBox.querySelectorAll('.detail-input-label').map((l)=>l._text);
+    ok('白刃攻击含附加加值1..5', ['附加加值1','附加加值2','附加加值3','附加加值4','附加加值5'].every((x)=>atkLabels.includes(x)), atkLabels);
     ok('白刃攻击含传奇力量(可见)', atkLabels.includes('传奇力量'), atkLabels);
-    ok('白刃攻击含加值1..3', ['加值1','加值2','加值3'].every((x)=>atkLabels.includes(x)), atkLabels);
     ok('白刃攻击tip隐藏属性/技能', atkBox.querySelector('.detail-tip')._text === '力量检定 + 白刃检定 · 伤害上限 2', atkBox.querySelector('.detail-tip')._text);
   }
   const semiBox = boxByTitle('半自动枪械攻击');

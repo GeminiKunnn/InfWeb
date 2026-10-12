@@ -51,6 +51,8 @@ GitHub Pages 部署（`src/` → `InfWebPages`）：正常终端提交推送后�
 git subtree push --prefix=src pages master:main
 ```
 
+> **缓存规避**：改 `js/*.js` 或 `css/style.css` 后，记得同步更新 `src/index.html` 里引用的版本参数（如 `css/style.css?v=xxx`、`js/app.js?v=xxx`）。否则浏览器/CDN 可能仍使用旧缓存，导致线上不生效（常见现象：本地正常、部署后变化看不到）。
+
 ## 五、更新记录数据源规范
 「更新记录」页读取 `src/content/updates/changelog.json` 渲染。**注意：JSON 不支持注释**。
 
