@@ -14,7 +14,7 @@ function load(name) {
   c = c.replace(/export\s+/g, '');
   return c;
 }
-let src = [load('character-config'), load('store'), load('app')].join('\n');
+let src = [load('character-config'), load('store'), load('state'), load('calc'), load('ui'), load('character'), load('pages'), load('new-character'), load('app')].join('\n');
 src = src.replace(/if\s*\(document\.readyState[\s\S]*$/, '');
 
 function FakeEl(tag) {

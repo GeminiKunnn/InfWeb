@@ -16,7 +16,7 @@ function load(name) {
   c = c.replace(/export\s+/g, '');
   return c;
 }
-let src = [load('character-config'), load('store'), load('app')].join('\n');
+let src = [load('character-config'), load('store'), load('state'), load('calc'), load('ui'), load('character'), load('pages'), load('new-character'), load('app')].join('\n');
 // 规则书模块在 app 里被 import，其定义不参与此测试向量；避免引用 renderRulesPage 抛错即可。
 
 function FakeEl(tag) {
