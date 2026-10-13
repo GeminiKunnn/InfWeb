@@ -27,8 +27,17 @@ function numberInput({ value, min = 0, max, onChange }) {
     ...(max != null ? { max } : {}),
     value,
   });
+  // 有 max 时视为「硬上限」输入：手动键入越界数字会即时被钳回区间并回显，箭头控制天然受限。
   input.addEventListener('input', (e) => {
-    onChange(Number(e.target.value) || 0, input);
+    let v = Number(e.target.value) || 0;
+    if (max != null) {
+      const locked = Math.min(max, Math.max(min, v));
+      if (locked !== v) {
+        v = locked;
+        input.value = v; // 回显为钳制后的合法值
+      }
+    }
+    onChange(v, input);
     autoGrow(input);
   });
   return input;

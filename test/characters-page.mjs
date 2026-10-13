@@ -255,6 +255,125 @@ const TEST = `
   ok('技能互斥为456排列', skillVals.slice().sort().join() === '4,5,6', JSON.stringify(skillVals));
   ok('技能预算含6', skillVals.includes(6), JSON.stringify(skillVals));
 
+  // 超限输入 → 该组标红报错（与属性段同款）：技能/属性任一大类含超限值即被判定有问题。
+  // 技能：合法区间 [0,4]（建卡硬上限 4）
+  const sP0 = SKILLS.filter(s=>s.group==='生理').map(s=>s.id);
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0));
+  ok('技能-正常值不标红', newCharGroupHasOutOfRange('skill','生理') === false, '');
+  newChar.skills[sP0[0]] = 5;            // 超上限(>4)
+  ok('技能-超上限标红', newCharGroupHasOutOfRange('skill','生理') === true, '');
+  newChar.skills[sP0[0]] = -3;           // 低于下限
+  ok('技能-低于下限标红', newCharGroupHasOutOfRange('skill','生理') === true, '');
+  newChar.skills[sP0[0]] = 4;            // 边界值 4 合法
+  ok('技能-边界 4 不标红', newCharGroupHasOutOfRange('skill','生理') === false, '');
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0));
+  // 属性：合法区间 [2,5]（建卡硬上限 5）
+  const idP0 = ATTRIBUTES.filter(a=>a.group==='生理').map(a=>a.id);
+  ATTRIBUTES.forEach((a)=>(newChar.attributes[a.id]=2));
+  ok('属性-正常值不标红', newCharGroupHasOutOfRange('attribute','生理') === false, '');
+  newChar.attributes[idP0[0]] = 6;      // 超上限(>5)
+  ok('属性-超上限标红', newCharGroupHasOutOfRange('attribute','生理') === true, '');
+  newChar.attributes[idP0[0]] = 1;       // 低于下限
+  ok('属性-低于下限标红', newCharGroupHasOutOfRange('attribute','生理') === true, '');
+  newChar.attributes[idP0[0]] = 5;       // 边界 5 合法
+  ok('属性-边界 5 不标红', newCharGroupHasOutOfRange('attribute','生理') === false, '');
+
+  // ---- 新建角色各段标题右侧的 ❗ 标记逻辑 ----
+  // 概念段：任一必填项为空 → 有问题
+  newChar.concept = { name: '', gender: '', race: '', age: '', build: '', appearance: '', background: '' };
+  ok('概念段-空则有问题', newCharConceptTroubled() === true, '');
+  newChar.concept.name = '甲'; newChar.concept.gender = '男'; newChar.concept.race = '人类';
+  newChar.concept.appearance = 'x'; newChar.concept.background = 'y';
+  ok('概念段-必填齐则正常', newCharConceptTroubled() === false, '');
+
+  // 属性段：定向属性点未分配齐（≠12）→ 有问题；分配齐 → 正常
+  const attrSpentTotal = () => ['生理','心智','互动'].reduce((s,g)=>s+newCharAttrGroupCount(g),0);
+  // 重置属性为默认 2（花费 0），定向点预算回到 5/4/3
+  ATTRIBUTES.forEach((a) => (newChar.attributes[a.id] = 2));
+  assignAttrBudget('生理', 5); assignAttrBudget('心智', 4); assignAttrBudget('互动', 3);
+  ok('属性段-未分配(0/12)则有问题', newCharAttrTroubled() === true, 'spent='+attrSpentTotal());
+  // 让三个大类各自花满定向点：生理 5 点用 4+（2→4）、心智 4 点用 3+... 直接各属性推到目标
+  // 生理：一个属性 2→5 = 4 点、一个 2→4 = 2 点 → 复用同一属性需分开：改为仅验证到达 12
+  ['力量','敏捷'].forEach((id,i)=>{ newChar.attributes[id] = i===0?5:4; });   // 生理 4+2=6 仍未满
+  // 直接把定向分配改满：生理=5 心智=4 互动=3 已设；将生理推到 5（4+1）、心智推到 4（2+2）
+  // —— 精确凑 12：生理一个 2→5(4) + 2→3(1) = 5；心智 2→4(2)+2→3(1)+2→2(0)... 
+  // 简化：直接断言初始(0/12)有问题 与 满额(12)正常 两端即可
+  const idP = ATTRIBUTES.filter(a=>a.group==='生理').map(a=>a.id);
+  const idM = ATTRIBUTES.filter(a=>a.group==='心智').map(a=>a.id);
+  const idI = ATTRIBUTES.filter(a=>a.group==='互动').map(a=>a.id);
+  ATTRIBUTES.forEach((a)=> (newChar.attributes[a.id]=2));
+  // 生理 5: 2→5(4) + 其余 2；心智 4: 2→4(2)+2→3(1)；互动不用点，但需合计 12
+  newChar.attributes[idP[0]] = 5;          // 4
+  newChar.attributes[idM[0]] = 4;          // 2
+  newChar.attributes[idM[1]] = 3;          // 1
+  newChar.attributes[idI[0]] = 3;          // 1
+  newChar.attributes[idI[1]] = 3;          // 1
+  // 上面合计 4+2+1+1+1=9（仍未到 12）；把生理再加足：idP[1]→4 再加 2 = 11；再 idI[2]→3 加 1=12
+  newChar.attributes[idP[1]] = 4;          // +2 = 11
+  newChar.attributes[idI[2]] = 3;          // +1 = 12
+  ok('属性段-分配齐(12/12)则正常', newCharAttrTroubled() === false, 'spent='+attrSpentTotal());
+
+  // 技能段：定向技能点未分配齐（≠15）→ 有问题
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0));
+  ok('技能段-未分配(0/15)则有问题', newCharSkillTroubled() === true, '');
+  const sP = SKILLS.filter(s=>s.group==='生理').map(s=>s.id);
+  const sM = SKILLS.filter(s=>s.group==='心智').map(s=>s.id);
+  const sI = SKILLS.filter(s=>s.group==='互动').map(s=>s.id);
+  // 凑 15：生理 6、心智 5、互动 4 — 各用一个 0→X 成本之和
+  newChar.skills[sP[0]] = 4; newChar.skills[sP[1]] = 2; // 5+2=7(生理)
+  newChar.skills[sM[0]] = 3; newChar.skills[sM[1]] = 3; // 3+3=6(心智) 已 13
+  newChar.skills[sI[0]] = 3; newChar.skills[sI[1]] = 1; // 3+1=4(互动) =17 超了
+  // 重新精确凑 15（定向各足额且不溢出自由池）：生理 6 / 心智 5 / 互动 4 成本
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0));
+  newChar.skillBudget = { 生理: 6, 心智: 5, 互动: 4 }; // 还原默认定向预算
+  newChar.skills[sP[0]] = 4; newChar.skills[sP[1]] = 1; // 生理 5+1=6
+  newChar.skills[sM[0]] = 4;                           // 心智 5
+  newChar.skills[sI[0]] = 3; newChar.skills[sI[1]] = 1; // 互动 3+1=4
+  ok('技能段-分配齐(15/15)则正常', newCharSkillTroubled() === false, 'spent='+newCharSkillDirectedTotal());
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0)); // 归零恢复
+
+  // ---- 技能「定向 + 自由」推导模型 ----
+  newChar.skillBudget = { 生理: 6, 心智: 5, 互动: 4 };
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0));
+  // 定向分满后超额计入自由池
+  newChar.skills[sP[0]] = 4;   // 生理 skillCost=5
+  newChar.skills[sP[1]] = 4;   // 生理 skillCost=5 → 生理总 10，定向 6 + 自由 4
+  newChar.skills[sM[0]] = 4;   // 心智 skillCost=5 → 定向 5（心智满）
+  ok('生理组定向=6(封顶)', newCharGroupDirectedUsed('生理') === 6, 'd='+newCharGroupDirectedUsed('生理'));
+  ok('生理组自由=4(超额)', newCharGroupFreeUsed('生理') === 4, 'f='+newCharGroupFreeUsed('生理'));
+  ok('全局自由=4', newCharSkillFreeTotal() === 4, 'free='+newCharSkillFreeTotal());
+  ok('自由未超 5 不超支', newCharAllocGroupOver('skill','生理') === false, '');
+  // 自由耗尽（>5）时，占用自由点的组标红，且全局超支
+  newChar.skills[sM[1]] = 4;   // 心智再 +5 → 心智总 10，定向 5 + 自由 5 → 全局自由 4+5=9 > 5
+  ok('全局自由=9(超支)', newCharSkillFreeTotal() === 9, 'free='+newCharSkillFreeTotal());
+  ok('自由超支-占用组标红', newCharAllocGroupOver('skill','生理') === true, '');
+  ok('自由超支-心智组标红', newCharAllocGroupOver('skill','心智') === true, '');
+  ok('自由超支-未占用组不红', newCharAllocGroupOver('skill','互动') === false, '');
+  ok('技能段-自由超支则有问题', newCharSkillTroubled() === true, '');
+  // 组显示文案：占用自由点时附「（自由 X）」
+  const gline = newCharAllocGroupLine('skill','生理');
+  ok('生理组显示含自由占用', gline.includes('自由 4'), gline);
+  SKILLS.forEach((s)=>(newChar.skills[s.id]=0)); // 归零恢复
+
+  // 专长段：已用专长点 ≠ 15 → 有问题；= 15 → 正常
+  newChar.perks = [];
+  ok('专长段-无专长(0/15)则有问题', newCharPerkTroubled() === true, '');
+  newChar.perks = [{ name:'x', level:15 }];
+  ok('专长段-恰 15 则正常', newCharPerkTroubled() === false, 'spent='+newCharPerkSpentTotal());
+  newChar.perks = [{ name:'x', level:10 }];
+  ok('专长段-≠15 则有问题(10)', newCharPerkTroubled() === true, 'spent='+newCharPerkSpentTotal());
+  // 专长列表渲染：传入真实容器应产出每行（修复「添加后不显示」的路径）
+  const pkList = new FakeEl('div');
+  pkList.children = []; // FakeEl 无 innerHTML 语义，手动清空
+  newChar.perks = [{ name:'闪避专长', level:2 }, { name:'狂暴', level:1 }];
+  renderNewCharPerkList(pkList);
+  const pkRows = (function(){ let out=[]; (function w(n){ for(const c of (n.children||[])){ if((c._class||'').split(' ').includes('perk-row')) out.push(c); w(c);} })(pkList); return out; })();
+  ok('专长列表渲染行数=2', pkRows.length === 2, 'rows='+pkRows.length+' perksLen='+newChar.perks.length);
+  const txts = pkRows.map(r => r.children.map(c=>c._text||'').join('|'));
+  ok('专长行含名称与等级', txts[0].includes('闪避专长') && txts[0].includes('2 级'), JSON.stringify(txts[0]));
+  ok('专长已用合计=3', newCharPerkSpentTotal() === 3, 'spent='+newCharPerkSpentTotal());
+  newChar.perks = [];
+
   console.log(results.join('\\n'));
   return results;
 })();

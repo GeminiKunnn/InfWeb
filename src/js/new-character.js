@@ -11,7 +11,7 @@
  */
 
 import { ATTRIBUTES, SKILLS, GROUPS } from './character-config.js';
-import { el, numberInput, textInput, textarea, select, section, flash } from './ui.js';
+import { el, numberInput, textInput, textarea, select, flash } from './ui.js';
 
 /* ------------------------- 新建角色（快速创建角色卡流程） ------------------------- */
 
@@ -54,28 +54,82 @@ function assignSkillBudget(group, v) {
   assignBudget('skill', group, [6, 5, 4], v);
 }
 
-// 属性从基础 2 升至值 V 的累计点数（4→5 需 2 点，上限 6）
+// 属性从基础 2 升至值 V 的累计点数（3→1、4→2、5→4；建卡硬上限 5，>5 一律按到 5 的成本计）
 function attrCost(V) {
   if (V <= 2) return 0;
   if (V === 3) return 1;
   if (V === 4) return 2;
-  if (V === 5) return 4;
-  return 7; // 6
+  return 4; // V >= 5（建卡最高 5，超限值按 5 的成本计，另由越界判定单独标红）
 }
-// 技能从 0 升至 V 的累计点数（3→4 需 2 点，建卡不可到 5 级规则上限用 5 兜底）
+// 技能从 0 升至 V 的累计点数（0→1→2→3；建卡硬上限 4，3→4 +2 ⇒ 值 4，>4 一律按到 4 的成本计）
 function skillCost(V) {
   if (V <= 0) return 0;
   if (V === 1) return 1;
   if (V === 2) return 2;
   if (V === 3) return 3;
-  return 5; // 4（3→4）+2 = 5 → 值 4；升至 5 视作 2 点（建卡规则内不可，留上限）
+  return 5; // V >= 4（建卡最高 4；超限值按 4 的成本计，另由越界判定单独标红）
 }
 
 function newCharAttrGroupCount(group) {
   return ATTRIBUTES.filter((a) => a.group === group).reduce((s, a) => s + attrCost(newChar.attributes[a.id] || 2), 0);
 }
 function newCharSkillGroupCount(group) {
+  // 该组技能已耗点数合计（含定向 + 可能由自由点分担的超额）
   return SKILLS.filter((s) => s.group === group).reduce((s, sk) => s + skillCost(newChar.skills[sk.id] || 0), 0);
+}
+// ---- 技能「定向 + 自由」推导模型（先定向后自由） ----
+// 某组定向实际消耗 = min(组总耗点, 组定向预算)；超额部分由全局自由池承担。
+function newCharGroupDirectedUsed(group) {
+  const B = newChar.skillBudget[group];
+  return Math.min(newCharSkillGroupCount(group), B);
+}
+// 某组占用自由点 = max(0, 组总耗点 − 组定向预算)
+function newCharGroupFreeUsed(group) {
+  const B = newChar.skillBudget[group];
+  return Math.max(0, newCharSkillGroupCount(group) - B);
+}
+// 全局自由点已用 = Σ 各组自由占用
+function newCharSkillFreeTotal() {
+  return ['生理', '心智', '互动'].reduce((s, g) => s + newCharGroupFreeUsed(g), 0);
+}
+
+// 分配组的「已用 / 可用」展示文案：属性照旧；技能额外标注该组占用的自由点。
+function newCharAllocGroupLine(kind, g) {
+  if (kind === 'attribute') {
+    const budget = newChar.attrBudget[g];
+    return `已用 ${newCharAttrGroupCount(g)} / 可用 ${budget} 点`;
+  }
+  const budget = newChar.skillBudget[g];
+  const free = newCharGroupFreeUsed(g);
+  return `已用 ${newCharGroupDirectedUsed(g)} / 可用 ${budget} 点` + (free > 0 ? `（自由 ${free}）` : '');
+}
+// 分配组是否超支（红）：属性按逐组预算；技能按「自由池耗尽 且 该组占用自由点」，或存在超限输入。
+function newCharAllocGroupOver(kind, g) {
+  if (newCharGroupHasOutOfRange(kind, g)) return true;
+  if (kind === 'attribute') return newCharAttrGroupCount(g) > newChar.attrBudget[g];
+  return newCharSkillFreeTotal() > newChar.freeSkillPoints && newCharGroupFreeUsed(g) > 0;
+}
+
+// 小节容器（同 section()），但在标题右侧附一个可显隐的「❗」问题标记。
+// 标记由 refreshNewCharValidation() 按各段校验开关；id 用于精确寻址。
+function newCharSection(title, contentNode, markerId) {
+  const container = el('div', { class: 'card-section' });
+  const titleRow = el('h2', { class: 'section-title newchar-section-title' }, [
+    el('span', { class: 'newchar-section-text', text: title }),
+    el(
+      'span',
+      {
+        class: 'newchar-marker',
+        id: markerId,
+        title: '本段存在待处理项',
+        text: '❗',
+        hidden: true,
+      },
+    ),
+  ]);
+  container.appendChild(titleRow);
+  container.appendChild(contentNode);
+  return container;
 }
 
 function renderNewCharacterPage() {
@@ -86,7 +140,7 @@ function renderNewCharacterPage() {
     el('div', { class: 'char-head' }, [
       el('header', { class: 'masthead' }, [
         el('h1', { text: '新建角色' }),
-        el('p', { class: 'subtitle', text: '按「快速创建角色卡」流程依次填写以下内容' }),
+        el('p', { class: 'subtitle', text: '按「快速创建角色卡」流程依次填写以下内容，出现❗代表存在必填项未填写' }),
       ]),
       el('button', {
         type: 'button',
@@ -100,18 +154,18 @@ function renderNewCharacterPage() {
   const body = el('div', { class: 'newchar-body' });
 
   // ---- 1. 概念段 ----
-  body.appendChild(section('1. 概念段', renderNewCharConcept()));
+  body.appendChild(newCharSection('1. 概念段', renderNewCharConcept(), 'newchar-marker-concept'));
 
   // ---- 2. 属性段 ----
-  const attrNote = '九个属性默认 2；生理/心智/互动分别分配 5/4/3 点定向属性点（4→5 需 2 点，建卡上限 6）。';
-  body.appendChild(section('2. 属性段', renderNewCharAllocator('attribute', attrNote)));
+  const attrNote = '九个属性默认 2；生理/心智/互动分别分配 5/4/3 点定向属性点（4→5 需 2 点，建卡上限 5）。';
+  body.appendChild(newCharSection('2. 属性段', renderNewCharAllocator('attribute', attrNote), 'newchar-marker-attr'));
 
   // ---- 3. 技能段 ----
-  const skillNote = '技能默认 0；生理/心智/互动分别分配 6/5/4 点定向技能点，另有 5 点自由技能点（3→4 需 2 点，建卡上限 5）。';
-  body.appendChild(section('3. 技能段', renderNewCharAllocator('skill', skillNote)));
+  const skillNote = '技能默认 0；生理/心智/互动分别分配 6/5/4 点定向技能点，另有 5 点自由技能点（3→4 需 2 点，建卡上限 4）。';
+  body.appendChild(newCharSection('3. 技能段', renderNewCharAllocator('skill', skillNote), 'newchar-marker-skill'));
 
   // ---- 4. 专长段 ----
-  body.appendChild(section('4. 专长段', renderNewCharPerks()));
+  body.appendChild(newCharSection('4. 专长段', renderNewCharPerks(), 'newchar-marker-perk'));
 
   app.appendChild(body);
 
@@ -126,7 +180,6 @@ function renderNewCharacterPage() {
   submit.disabled = true;
   submit.id = 'newchar-submit';
   bar.appendChild(submit);
-  bar.appendChild(el('span', { class: 'newchar-hint', id: 'newchar-hint', text: '请完整填写所需内容' }));
   app.appendChild(bar);
 
   refreshNewCharValidation();
@@ -197,11 +250,14 @@ function renderNewCharAllocator(kind, note) {
     items.forEach((item) => {
       const row = el('label', { class: 'alloc-item' });
       row.appendChild(el('span', { class: 'alloc-item-label', text: item.label }));
+      const minV = kind === 'attribute' ? 2 : 0;
+      const maxV = kind === 'attribute' ? 5 : 4; // 建卡硬上限：属性 ≤5、技能 ≤4
       const step = numberInput({
         value: kind === 'attribute' ? newChar.attributes[item.id] : newChar.skills[item.id],
-        min: kind === 'attribute' ? 2 : 0,
-        max: kind === 'attribute' ? 6 : 5,
+        min: minV,
+        max: maxV,
         onChange: (v) => {
+          // numberInput 已按 [minV,maxV] 硬上限钳制并回显；这里仅落库。
           if (kind === 'attribute') newChar.attributes[item.id] = v;
           else newChar.skills[item.id] = v;
           refreshNewCharValidation();
@@ -226,11 +282,12 @@ function renderNewCharAllocator(kind, note) {
     outer.appendChild(block);
   });
 
-  // 技能另加一个全局预算合计（定向 15 + 自由 5 = 20 点）
+  // 技能另加一个全局预算合计（定向 15 + 自由 5，运行中由 refreshNewCharValidation 刷新）
   if (kind === 'skill') {
+    const dir0 = newCharSkillTotal() - newCharSkillFreeTotal();
     outer.appendChild(
       el('div', { class: 'alloc-used', id: 'newchar-skill-total', dataset: { kind: 'skill' } }, [
-        el('span', { text: `技能点合计：已用 ${newCharSkillTotal()} / 可用 20 点（定向 15 + 自由 5）` }),
+        el('span', { text: `技能点合计：已用 ${dir0 + newCharSkillFreeTotal()} 点（定向 ${dir0} / 15，自由 ${newCharSkillFreeTotal()} / ${newChar.freeSkillPoints}）` }),
       ])
     );
   }
@@ -257,21 +314,20 @@ function renderNewCharAllocatorSync() {
   document.querySelectorAll('.allocator .alloc-used[data-group]').forEach((used) => {
     const kind = used.dataset.kind;
     const g = used.dataset.group;
-    const budget = kind === 'attribute' ? newChar.attrBudget[g] : newChar.skillBudget[g];
-    const spent = groupSpent(kind, g);
     const span = used.querySelector('span');
-    if (span) span.textContent = `已用 ${spent} / 可用 ${budget} 点`;
-    used.classList.toggle('over', spent > budget);
+    if (span) span.textContent = newCharAllocGroupLine(kind, g);
+    used.classList.toggle('over', newCharAllocGroupOver(kind, g));
   });
   const skillTotal = document.getElementById('newchar-skill-total');
   if (skillTotal) {
     const span = skillTotal.querySelector ? skillTotal.querySelector('span') : null;
-    if (span) span.textContent = `技能点合计：已用 ${newCharSkillTotal()} / 可用 20 点（定向 15 + 自由 5）`;
+    const dir = newCharSkillTotal() - newCharSkillFreeTotal();
+    if (span) span.textContent = `技能点合计：已用 ${dir + newCharSkillFreeTotal()} 点（定向 ${dir} / 15，自由 ${newCharSkillFreeTotal()} / ${newChar.freeSkillPoints}）`;
   }
 }
 
 function newCharSkillTotal() {
-  // 已用的总技能点 = 各大类定向点花费之和（自由点视为可分配到任意技能，剩余自由点另计）
+  // 已用的总技能点 = 各组耗点之和（定向消耗上限 15 + 自由点占用）
   return newCharSkillGroupCount('生理') + newCharSkillGroupCount('心智') + newCharSkillGroupCount('互动');
 }
 
@@ -279,6 +335,11 @@ function newCharSkillTotal() {
 function renderNewCharPerks() {
   const wrap = el('div', { class: 'perk-builder' });
   wrap.appendChild(el('p', { class: 'rule-note', text: `建卡拥有 ${newChar.perkPoints} 点专长点数；1 点换 1 级，多级专长须逐级购买。专长列表可在「规则书→快速创建角色卡→C.专长列表」查阅。` }));
+  wrap.appendChild(
+    el('div', { class: 'perk-total', id: 'newchar-perk-total' }, [
+      el('span', { text: `已用专长点 ${newCharPerkSpentTotal()} / ${newChar.perkPoints} 点` }),
+    ])
+  );
 
   const listEl = el('div', { class: 'perk-list', id: 'newchar-perk-list' });
   wrap.appendChild(listEl);
@@ -294,7 +355,7 @@ function renderNewCharPerks() {
     const level = Number(addRow.dataset.level) || 1;
     if (!name) return;
     newChar.perks.push({ name, level });
-    renderNewCharPerkList();
+    renderNewCharPerkList(listEl);
     addRow.dataset.name = '';
     nameInput.value = '';
     refreshNewCharValidation();
@@ -339,42 +400,96 @@ function newCharBudgetsValid() {
   // 属性：各大类定向点互不相同的 {3,4,5} 排列，且各大类花费不超过各自定向点
   const attrPerm = Object.values(newChar.attrBudget).slice().sort().join() === [3, 4, 5].join();
   const attrsOk = attrPerm && GROUPS.every((g) => newCharAttrGroupCount(g) <= newChar.attrBudget[g]);
-  // 技能：各大类定向点互不相同的 {6,5,4} 排列，且各大类花费不超过其定向点；全局合计 ≤ 定向15+自由5=20
+  // 技能：各大类定向点互不相同的 {6,5,4} 排列；自由点占用不超过 5（定向先满，超出的才占用自由点）
   const skillPerm = Object.values(newChar.skillBudget).slice().sort().join() === [4, 5, 6].join();
-  const skillsOk = skillPerm && GROUPS.every((g) => newCharSkillGroupCount(g) <= newChar.skillBudget[g]) && newCharSkillTotal() <= 20;
+  const skillsOk = skillPerm && newCharSkillFreeTotal() <= newChar.freeSkillPoints && newCharSkillTotal() <= 15 + newChar.freeSkillPoints;
   return attrsOk && skillsOk;
 }
+/* ----- 各小节的「存在问题」判定（用于标题右侧 ❗ 标记） ----- */
+// 定向属性点合计（生理5 + 心智4 + 互动3 = 12）
+function newCharAttrSpentTotal() {
+  return ['生理', '心智', '互动'].reduce((s, g) => s + newCharAttrGroupCount(g), 0);
+}
+// 定向技能点合计（生理6 + 心智5 + 互动4 = 15，上限不会超过 15，超出部分计入自由池）
+function newCharSkillDirectedTotal() {
+  return ['生理', '心智', '互动'].reduce((s, g) => s + newCharGroupDirectedUsed(g), 0);
+}
+// 专长已用点数合计（Σ 等级）
+function newCharPerkSpentTotal() {
+  return newChar.perks.reduce((s, p) => s + (Number(p.level) || 0), 0);
+}
+// 概念段：任一必填项为空即存在问题
+function newCharConceptTroubled() {
+  return !newCharRequiredConceptFilled();
+}
+// 属性段：定向属性点未分配齐（≠12）即存在问题
+function newCharAttrTroubled() {
+  return newCharAttrSpentTotal() !== 12;
+}
+// 技能段：定向技能点未分配齐（≠15）即存在问题；定向已满但仍占用超额自由点（>5）同样有问题
+function newCharSkillTroubled() {
+  return newCharSkillDirectedTotal() !== 15 || newCharSkillFreeTotal() > newChar.freeSkillPoints;
+}
+// 某大类的任一属性/技能值超出合法区间（属性 [2,5]、技能 [0,4]，建卡硬上限）→ 视为越界
+function newCharGroupHasOutOfRange(kind, group) {
+  if (kind === 'attribute') {
+    return ATTRIBUTES.filter((a) => a.group === group).some((a) => {
+      const v = newChar.attributes[a.id];
+      return v < 2 || v > 5;
+    });
+  }
+  return SKILLS.filter((s) => s.group === group).some((s) => {
+    const v = newChar.skills[s.id];
+    return v < 0 || v > 4;
+  });
+}
+// 专长段：已用专长点 ≠ 15 即存在问题
+function newCharPerkTroubled() {
+  return newCharPerkSpentTotal() !== 15;
+}
+
 function refreshNewCharValidation() {
   const submit = document.getElementById('newchar-submit');
-  const hint = document.getElementById('newchar-hint');
   if (!submit) return;
 
-  const conceptOk = newCharRequiredConceptFilled();
-  const budgetsOk = newCharBudgetsValid();
-  const ok = conceptOk && budgetsOk;
-
+  const ok = newCharRequiredConceptFilled() && newCharBudgetsValid();
   submit.disabled = !ok;
+
+  // 各小节标题右侧的 ❗ 标记：存在待处理项时显示
+  const markers = {
+    'newchar-marker-concept': newCharConceptTroubled(),
+    'newchar-marker-attr': newCharAttrTroubled(),
+    'newchar-marker-skill': newCharSkillTroubled(),
+    'newchar-marker-perk': newCharPerkTroubled(),
+  };
+  Object.entries(markers).forEach(([id, troubled]) => {
+    const m = document.getElementById(id);
+    if (m) m.hidden = !troubled;
+  });
+
   // 刷新各大类「已用 / 可用」
   document.querySelectorAll('.allocator .alloc-used[data-group]').forEach((used) => {
     const kind = used.dataset.kind;
     const g = used.dataset.group;
-    const budget = kind === 'attribute' ? newChar.attrBudget[g] : newChar.skillBudget[g];
-    const spent = groupSpent(kind, g);
     const span = used.querySelector('span');
-    if (span) span.textContent = `已用 ${spent} / 可用 ${budget} 点`;
-    used.classList.toggle('over', spent > budget);
+    if (span) span.textContent = newCharAllocGroupLine(kind, g);
+    used.classList.toggle('over', newCharAllocGroupOver(kind, g));
   });
   // 技能全局合计
   const skillTotal = document.getElementById('newchar-skill-total');
   if (skillTotal) {
     const span = typeof skillTotal.querySelector === 'function' ? skillTotal.querySelector('span') : null;
-    if (span) span.textContent = `技能点合计：已用 ${newCharSkillTotal()} / 可用 20 点（定向 15 + 自由 5）`;
-    if (typeof skillTotal.classList !== 'undefined') skillTotal.classList.toggle('over', newCharSkillTotal() > 20);
+    const dir = newCharSkillTotal() - newCharSkillFreeTotal();
+    if (span) span.textContent = `技能点合计：已用 ${dir + newCharSkillFreeTotal()} 点（定向 ${dir} / 15，自由 ${newCharSkillFreeTotal()} / ${newChar.freeSkillPoints}）`;
+    if (typeof skillTotal.classList !== 'undefined') skillTotal.classList.toggle('over', newCharSkillFreeTotal() > newChar.freeSkillPoints);
   }
-
-  if (!conceptOk) hint.textContent = '请填写概念段的必填项（姓名/性别/种族/性格简介/背景简介）';
-  else if (!budgetsOk) hint.textContent = '属性/技能存在超出预算的分配，请调整或核对定向点数（属性三类需为 3/4/5、技能三类需为 6/5/4 且互不重复）';
-  else hint.textContent = '所有必填内容已填写，可提交保存。';
+  // 专长已用合计
+  const perkTotal = document.getElementById('newchar-perk-total');
+  if (perkTotal) {
+    const span = typeof perkTotal.querySelector === 'function' ? perkTotal.querySelector('span') : null;
+    if (span) span.textContent = `已用专长点 ${newCharPerkSpentTotal()} / ${newChar.perkPoints} 点`;
+    if (typeof perkTotal.classList !== 'undefined') perkTotal.classList.toggle('over', newCharPerkSpentTotal() > newChar.perkPoints);
+  }
 }
 
 function submitNewCharacter() {

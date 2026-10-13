@@ -318,6 +318,32 @@ body {
   border-left: 4px solid var(--accent);
   padding-left: 10px;
 }
+/* 新建角色：各段标题后紧跟的「❗」问题标记 */
+.newchar-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: none;
+  padding-left: 0;
+}
+.newchar-section-text {
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  line-height: 1.2;
+}
+.newchar-marker {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1;
+  color: #c0392b;
+  background: #fdecea;
+  border: 1px solid #e8a6a0;
+  border-radius: 4px;
+  padding: 1px 5px;
+  cursor: help;
+  flex: none;
+}
 
 /* ---------- 概念段 ----------
    参考 Excel「角色主体信息」：短字段三列一行，外貌/背景整行横跨 */
@@ -1899,6 +1925,14 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+.perk-total {
+  font-size: 12px;
+  color: var(--muted);
+}
+.perk-total.over {
+  color: #d0453e;
+  font-weight: 700;
+}
 .perk-list {
   display: flex;
   flex-direction: column;
@@ -1957,10 +1991,6 @@ body {
 .btn.small {
   padding: 6px 12px;
   font-size: 12px;
-}
-.newchar-hint {
-  font-size: 12px;
-  color: var(--muted);
 }
 
 /* 返回确认弹窗 */
