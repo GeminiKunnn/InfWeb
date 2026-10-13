@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+# 仅在 main 分支被推送时触发（不含 tag 触发）。
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # 也可手动触发
+
+# 允许 GITHUB_TOKEN 写入 Pages 环境 + 授予 Pages 部署权限。
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时刻只允许一个部署在跑；新推送会取消旧的进行中部署。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload Pages artifact
+        # 静态站点，无需构建：直接把 src/ 目录下半成品网页上传为 Pages 产物。
+        # 前端使用「相对站点根」的绝对路径拉取 changelog.json，兼容 /InfWebPages/ 子路径部署。
+        id: upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

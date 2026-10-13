@@ -2,15 +2,26 @@
 
 基于 HTML5 Boilerplate 的静态项目，前端源码在 `src/`，纯前端（ES Module）+ 静态数据，无需构建即可部署。
 
-## 一、模块构成（三层架构，便于迁移 Vue / 接后端）
-- `index.html`：侧边栏菜单 + 内容区 `#app` + 用户栏，ES Module 加载脚本。
-- `css/style.css`：全站样式。
+## 一、模块构成（三层扁平架构，便于迁移 Vue / 接后端）
+入口 `index.html` 以 `<script type="module">` 加载 `js/app.js` 作为模块根，其余模块由其 `import` 关系递归加载，无需构建即可部署。
+
+**配置 / 纯逻辑层（不依赖 DOM）**
 - `js/character-config.js` — **字段单一数据源**（九属性 / 二十一技能 / 三分组，id 稳定可作 API 字段名）。
-- `js/store.js` — **状态 + 持久化**（`emptyCharacter()`、`api.save/load`，现走 localStorage，后端预留）+ 动态行工厂。
-- `js/app.js` — **渲染与交互**（原生 DOM）：主页面/应用切换、角色管理、角色卡 sheet、动态行、数值计算、路由。
+- `js/store.js` — 状态模型 + 持久化（`emptyCharacter()`、`api.save/load`，现走 localStorage，后端预留）+ 各元素工厂（`newXxx`）。
+- `js/state.js` — 唯一持有可变运行态：当前角色 `character`（live binding）、应用导航 `appState`、角色卡子面板 `sheetState`。
+- `js/calc.js` — **纯计算**：属性/检定/传奇值、技能附加成功、派生值、豁免表 `SAVE_DEFS`、特殊攻击 DP、能量池总值等。
+
+**渲染层（读 state / 调 calc，构建 DOM）**
+- `js/ui.js` — DOM 辅助（`el` / `section` / `numberInput` / `select` / `actionButton` / `flash` 等）。
+- `js/character.js` — 角色卡 sheet 渲染：总览/属性 sheet、派生值明细、豁免、防御、敏感范围，以及法术/特殊攻击/能量池/专长/装备/特性/资源等动态表格。
+- `js/pages.js` — 页面级渲染：主页面(landing)、角色管理、规则书、资源、轮回之境、其他、更新记录（含 changelog 解析/格式帮助）。
+- `js/new-character.js` — 「快速创建角色卡」建卡向导（概念/属性/技能/专长 + 返回确认弹窗 + 导入角色卡弹窗）。
 - `js/rules.js` — **规则书**：零依赖 Markdown 渲染器 + 规则书页。
 
-依赖：`app.js → character-config / store / rules`；`rules.js → fetch content/rules/*.md`；`src/content/rules` 由 `scripts/docx2md.py` 从 `Rules/*.docx` 生成。
+**入口层（唯一反向依赖其余模块）**
+- `js/app.js` — 引导 `boot`、应用级页面路由 `renderPage`、底部菜单/侧边栏/事件委托 `setupGlobalEvent`。依赖图顶端，其余模块**不反向依赖 app.js**（返回确认等跨模块回调以参数注入）。
+
+依赖方向（自上而下）：`app.js → character.js / pages.js / new-character.js → ui.js / calc.js / state.js / character-config.js / store.js → rules.js(fetch content/rules/*.md)`。`src/content/rules` 由 `scripts/docx2md.py` 从 `Rules/*.docx` 生成。
 
 ## 二、页面
 主页面(landing) → 进入 → 应用（角色管理 / 规则书 / 更新记录 / 资源列表 / 轮回之境 / 其他）。角色卡分 sheet：总览 / 属性 / 法术 / 特殊攻击 / 能量池 / 专长 / 装备 / 特性 / 资源。
@@ -71,5 +82,5 @@ git subtree push --prefix=src pages master:main
 
 ## 六、未来规划
 - 接后端：见 `后端规划.md`（gitignore，不入库）。后端核心存储角色 + 资源并完成算式，前端仅解析展示；`角色管理`/`新建角色`/`登录` 现为占位。
-- 迁移 Vue：替换 `app.js` 渲染层，`character-config.js`/`store.js` 复用。
+- 迁移 Vue：替换 `character.js / pages.js / new-character.js / app.js` 渲染层，`character-config.js / store.js / state.js / calc.js` 复用。
 - 「轮回之境」页预留，后续开发游戏组 / 房间 / 多单位施效。

@@ -17,7 +17,7 @@ function load(name) {
   return code;
 }
 
-let moduleSource = [load('character-config'), load('store'), load('app')].join('\n');
+let moduleSource = [load('character-config'), load('store'), load('state'), load('calc'), load('ui'), load('character'), load('pages'), load('new-character'), load('app')].join('\n');
 
 // Remove boot invocation path so nothing runs on load
 moduleSource = moduleSource.replace(/if\s*\(document\.readyState[\s\S]*$/, '');
