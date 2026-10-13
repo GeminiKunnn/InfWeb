@@ -57,10 +57,11 @@ python -m http.server 8080 --directory src   # 或 npx serve src
 ```
 访问 `http://localhost:8080`（ES Module 需静态服务器，不能 file:// 直开）。
 
-GitHub Pages 部署（`src/` → `InfWebPages`）：正常终端提交推送后，
+GitHub Pages 部署（`.github/workflows/deploy-pages.yml`）：向 **master（主分支）** push 即自动部署 —— Action 会把 `src/` 整目录经 `actions/deploy-pages` 发布到本仓库 Pages；手动也可在 Actions 页面触发 `workflow_dispatch`。
 ```powershell
-git subtree push --prefix=src pages master:main
+git push origin master
 ```
+> 首次使用需在 仓库 Settings→Pages→Build and deployment→Source 选择 **GitHub Actions**。
 
 > **缓存规避**：改 `js/*.js` 或 `css/style.css` 后，记得同步更新 `src/index.html` 里引用的版本参数（如 `css/style.css?v=xxx`、`js/app.js?v=xxx`）。否则浏览器/CDN 可能仍使用旧缓存，导致线上不生效（常见现象：本地正常、部署后变化看不到）。
 
