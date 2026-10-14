@@ -25,13 +25,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Vite)
+        run: npm run build:vite
+
       - name: Upload Pages artifact
-        # 静态站点，无需构建：直接把 src/ 目录下半成品网页上传为 Pages 产物。
-        # 前端使用「相对站点根」的绝对路径拉取 changelog.json，兼容 /InfWebPages/ 子路径部署。
         id: upload
         uses: actions/upload-pages-artifact@v3
         with:
-          path: src
+          path: dist
 
   deploy:
     needs: build

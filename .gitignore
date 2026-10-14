@@ -2,6 +2,7 @@
 archive
 node_modules
 packages
+dist
 dist/package-lock.json
 src/package-lock.json
 /Rules

@@ -1568,8 +1568,8 @@ function renderSheetBody(host) {
 }
 
 /** 渲染「角色卡」页面（sheet 标签 + 内容区）。 */
-function renderCharacterPage() {
-  const app = document.getElementById('app');
+function renderCharacterPage({ host: parent = null } = {}) {
+  const app = parent || document.getElementById('app');
   app.innerHTML = '';
 
   app.appendChild(
@@ -1603,6 +1603,7 @@ function renderCharacterPage() {
   app.appendChild(actions);
 }
 export {
+  SHEETS,
   renderTitleRow,
   infoCell,
   detailNumber,
