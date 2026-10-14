@@ -1,10 +1,10 @@
 name: Deploy to GitHub Pages
 
-# 仅在 refactor2vue 分支被推送时触发（部署当前 Vue 迁移分支；不含 tag 触发）。
+# 仅在 master（主分支）被推送时触发（部署正式分支；不含 tag 触发）。
 on:
   push:
     branches:
-      - refactor2vue
+      - master
   workflow_dispatch: # 也可手动触发
 
 # 允许 GITHUB_TOKEN 写入 Pages 环境 + 授予 Pages 部署权限。
