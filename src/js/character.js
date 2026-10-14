@@ -18,7 +18,7 @@ import {
   attrsOf, attrPool, attrValue, attrLegendary,
   skillValue, skillExtraSuccess, nm,
   baseAttackData, sensitiveRangeTotal, SAVE_DEFS,
-  saveExtraSuccess, saveTotalOf, saveDisplayOf,
+  saveDisplayOf,
   attackCheckDP, energyTotal,
 } from './calc.js';
 
@@ -30,16 +30,7 @@ function renderGroupRow(label, colspan) {
   return tr;
 }
 
-/* ---------- 各可切换页面（底部菜单）与角色卡子面板（sheet 标签）的定义 ---------- */
-
-const PAGES = [
-  { id: 'changelog', label: '更新记录' },
-  { id: 'rules', label: '规则书' },
-  { id: 'resources', label: '资源列表' },
-  { id: 'characters', label: '角色管理' },
-  { id: 'realm', label: '轮回之境' },
-  { id: 'other', label: '其他' },
-];
+/* ---------- 角色卡子面板（sheet 标签）的定义 ---------- */
 
 const SHEETS = [
   { id: 'main', label: '角色总览' },
@@ -348,14 +339,14 @@ function renderHealthPanel() {
   const cell = infoCell('生命值总量', totalText, `状态 ${statusText}`);
   // 控制区：右侧两个按钮 + 两个输入框（按钮左、输入框右，各占半行，暂不实现功能）
   const ctrl = el('div', { class: 'health-ctrl' });
-  const mkAction = (label, key) => {
+  const mkAction = (label) => {
     const row = el('div', { class: 'health-action' });
     row.appendChild(actionButton(label, { action: 'health-action' }));
     row.appendChild(numberInput({ value: 0, min: 0, onChange: () => {} }));
     return row;
   };
-  ctrl.appendChild(mkAction('回复生命', 'heal'));
-  ctrl.appendChild(mkAction('受到伤害', 'damage'));
+  ctrl.appendChild(mkAction('回复生命'));
+  ctrl.appendChild(mkAction('受到伤害'));
   cell.appendChild(ctrl);
 
   const wrap = el('div', { class: 'health-panel' });
@@ -927,6 +918,8 @@ function derivedValues() {
   };
 }
 
+// 保留为参考的实现（当前未被引用；sheet 总览由 renderMainSheet 呈现）
+// eslint-disable-next-line no-unused-vars
 function renderDerivedPanel() {
   const d = derivedValues();
   const grid = el('div', { class: 'derived-grid' });
@@ -1268,6 +1261,8 @@ function renderEnergyRow(pool, index, emptyOpts) {
 
 /* ------------------------- 预留面板 ------------------------- */
 
+// 保留为参考的实现（当前未被引用）
+// eslint-disable-next-line no-unused-vars
 function renderPlaceholderSection(title, heading, note) {
   return section(title, renderPlaceholder(heading, note));
 }

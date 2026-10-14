@@ -1,25 +1,13 @@
 {
-  "name": "html5-boilerplate",
-  "version": "9.0.1",
-  "homepage": "https://html5boilerplate.com/",
+  "name": "infweb",
+  "version": "0.1.0",
+  "private": true,
   "license": "MIT",
-  "description": "A professional front-end template for building fast, robust, and adaptable web apps or sites.",
-  "keywords": [
-    "h5bp",
-    "template",
-    "front-end"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/h5bp/html5-boilerplate.git"
-  },
-  "bugs": {
-    "url": "https://github.com/h5bp/html5-boilerplate/issues"
-  },
+  "description": "鲲版无限网页角色卡：纯前端角色卡 + 规则书 + 更新记录（Vue 3 + Vite）。",
   "scripts": {
     "build": "gulp build",
     "prettier": "prettier --write ./**/*.{js,json,md,mjs,yml}",
-    "test": "gulp archive && mocha --reporter spec --timeout 5000",
+    "test": "mocha",
     "dev": "vite",
     "build:vite": "vite build",
     "preview": "vite preview",

@@ -75,7 +75,7 @@ const sandbox = {
   document: {
     readyState: 'loading',
     createElement: (t) => new FakeEl(t),
-    createTextNode: (t) => new FakeEl('#text'),
+    createTextNode: () => new FakeEl('#text'),
     addEventListener(){},
     querySelector: (sel) => (sel === '.sheet-body' ? hostEl() : null),
     querySelectorAll: () => [],

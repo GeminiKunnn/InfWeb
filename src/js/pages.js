@@ -7,7 +7,6 @@
  */
 import { renderRulesPage as renderRulesPageFromModule } from './rules.js';
 import { el } from './ui.js';
-import { appState } from './state.js';
 
 /** 空页面骨架。 */
 function renderEmptyPage(title, note) {

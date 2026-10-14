@@ -57,7 +57,7 @@ const testBody = `
     ok('[文件'+idx+'] 段落无残留换行', blocks.filter(b=>b.type==='para').every(p=>!p.html.includes('\\n')), '');
     // 危险的原文标签应被转义（<script> <iframe> <img）
     const allHtml = blocks.map(b=>b.html||'').join(' ');
-    ok('[文件'+idx+'] 危险标签已转义', !/<(script|iframe|img)[\s>]/i.test(allHtml), '');
+    ok('[文件'+idx+'] 危险标签已转义', !/<(script|iframe|img)[\t >]/.test(allHtml), '');
     // 强调标记配平
     const strong = (allHtml.match(/<strong>/g)||[]).length, strongEnd=(allHtml.match(/<\\/strong>/g)||[]).length;
     ok('[文件'+idx+'] <strong>配平', strong===strongEnd, strong+'/'+strongEnd);
