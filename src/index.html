@@ -5,97 +5,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>无限流角色卡</title>
-  <link rel="stylesheet" href="css/style.css?v=20261014-1133">
   <meta name="description" content="参考 Rules 规则建立的无限流角色卡网页。">
-
-  <!-- ============================================================
-       未来 Vue 接入预留点
-       1) 引入 Vue 与对应入口：
-            <script type="module" src="js/vue/index.js"></script>
-       2) 本页的 #app 容器可作为根组件的挂载点（Vue 会接管其内部 DOM）。
-       3) character-config.js / store.js 可直接复用为 Vue 的状态。
-       ============================================================ -->
 </head>
 
 <body>
+  <!-- Vue 根挂载点：整体布局（侧边栏 + 内容区）由 App.vue 接管渲染 -->
+  <div id="app"></div>
 
-  <div class="layout">
-
-    <!-- ================= 左侧垂直菜单栏 ================= -->
-    <aside class="sidebar" id="sidebar">
-      <!-- 折叠 / 展开按钮 -->
-      <button
-        type="button"
-        class="collapse-btn"
-        data-action="toggle-sidebar"
-        aria-label="折叠或展开菜单"
-        title="折叠 / 展开"
-      >
-        <span class="collapse-icon">☰</span>
-      </button>
-
-      <!-- 品牌（点击回到主页面） -->
-      <button type="button" class="brand" data-action="go-home" title="回到首页">
-        <span class="brand-mark">∞</span>
-        <span class="brand-text">无限流</span>
-      </button>
-
-      <!-- 菜单项：更新记录 / 规则书 / ... -->
-      <nav class="menu" id="menu">
-        <button type="button" class="menu-item" data-page="changelog">
-          <span class="menu-icon">📝</span>
-          <span class="menu-text">更新记录</span>
-        </button>
-        <button type="button" class="menu-item" data-page="rules">
-          <span class="menu-icon">📖</span>
-          <span class="menu-text">规则书</span>
-        </button>
-        <button type="button" class="menu-item" data-page="resources">
-          <span class="menu-icon">🗂️</span>
-          <span class="menu-text">资源列表</span>
-        </button>
-        <button type="button" class="menu-item" data-page="characters">
-          <span class="menu-icon">🧾</span>
-          <span class="menu-text">角色管理</span>
-        </button>
-        <button type="button" class="menu-item" data-page="realm">
-          <span class="menu-icon">🌀</span>
-          <span class="menu-text">轮回之境</span>
-        </button>
-        <button type="button" class="menu-item" data-page="other">
-          <span class="menu-icon">➕</span>
-          <span class="menu-text">其他</span>
-        </button>
-      </nav>
-
-      <!-- 用户信息（点击展开下拉：登出 / 版本，暂为界面） -->
-      <div class="user-box" id="user-box">
-        <button type="button" class="user-trigger" data-action="toggle-user-menu" title="账户">
-          <span class="user-name" id="user-name">未登录</span>
-          <span class="user-caret">▲</span>
-        </button>
-        <div class="user-menu" id="user-menu" hidden>
-          <button type="button" class="user-menu-item" data-action="logout">
-            <span class="user-menu-icon">⎋</span>
-            <span>登出</span>
-          </button>
-          <div class="user-menu-sep"></div>
-          <div class="user-menu-ver">v0.1.0</div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- ================= 右侧内容区（页面切换渲染到这里） ================= -->
-    <main class="content" id="content">
-      <div id="app"></div>
-      <!-- 未来 Vue 迁移：可将 #app 作为根组件挂载点 -->
-    </main>
-
-  </div>
-
-  <!-- 脚本改为 ES Module，以支持 import（?v= 用于规避 CDN/浏览器对旧版 app.js 的强缓存） -->
-  <script type="module" src="js/app.js?v=20261014-1133"></script>
-
+  <!-- Vue3 入口：Vite 打包，样式由 src/main.js 引入 -->
+  <script type="module" src="/main.js"></script>
 </body>
 
 </html>

@@ -28,6 +28,10 @@ const newChar = {
   perks: [], // { name, level } 占位
 };
 
+// Vue 迁移：记录渲染到的宿主容器（由视图组件传入），供模块内部（如提交后）原地重渲染，
+// 避免依赖全局 #app。传入 host 时记录，供 submitNewCharacter 等内部逻辑复用。
+let currentHost = null;
+
 // 定向点数互斥分配：把某大类的点数设为 v，其余两类自动补上剩余值（保持各自已有值优先）。
 function assignBudget(kind, group, values, v) {
   const budget = kind === 'attribute' ? newChar.attrBudget : newChar.skillBudget;
@@ -132,8 +136,9 @@ function newCharSection(title, contentNode, markerId) {
   return container;
 }
 
-function renderNewCharacterPage() {
-  const app = document.getElementById('app');
+function renderNewCharacterPage({ host = null } = {}) {
+  if (host) currentHost = host;
+  const app = host || currentHost || document.getElementById('app');
   app.innerHTML = '';
 
   app.appendChild(
@@ -611,4 +616,22 @@ function openImportDialog() {
   document.body.appendChild(overlay);
 }
 
-export { renderNewCharacterPage, openImportDialog, confirmLeaveNewCharacter, submitNewCharacter };
+export {
+  renderNewCharacterPage,
+  openImportDialog,
+  confirmLeaveNewCharacter,
+  submitNewCharacter,
+  // —— 导出纯计算助手，供 Vitest 直接断言建卡规则（硬上限 / 15+5 自由点 / 组预算）——
+  newChar,
+  attrCost,
+  skillCost,
+  assignAttrBudget,
+  assignSkillBudget,
+  newCharAttrGroupCount,
+  newCharSkillGroupCount,
+  newCharGroupDirectedUsed,
+  newCharGroupFreeUsed,
+  newCharSkillFreeTotal,
+  newCharAllocGroupOver,
+  newCharGroupHasOutOfRange,
+};

@@ -55,9 +55,9 @@ const sandbox = {
   document: {
     readyState: 'loading',
     createElement: (t) => new FakeEl(t),
-    createTextNode: (t) => new FakeEl('#text'),
+    createTextNode: () => new FakeEl('#text'),
     addEventListener(){},
-    querySelector: (sel) => null,
+    querySelector: () => null,
     querySelectorAll: () => [],
     getElementById: (id) => (id === 'app' ? appStub : (id === 'sidebar' ? sidebarStub : new FakeEl('div'))),
     body: new FakeEl('body'),
