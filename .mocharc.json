@@ -1,0 +1,11 @@
+{
+  "spec": [
+    "test/module-audit-harness.mjs",
+    "test/characters-page.mjs",
+    "test/render-smoke.mjs",
+    "test/rules-parser.mjs",
+    "test/file_existence.mjs"
+  ],
+  "reporter": "spec",
+  "timeout": 5000
+}

@@ -48,7 +48,8 @@ function inlineHtml(text) {
   s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
   // [text](url)
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // 还原行内码
+  // 还原行内码（\u0001 为解析期占位符，属有意使用的控制字符，故豁免 no-control-regex）
+  // eslint-disable-next-line no-control-regex
   s = s.replace(/\u0001([^\u0001]*)\u0001/g, '<code>$1</code>');
   return s;
 }
@@ -167,55 +168,55 @@ function buildMdDom(mdText) {
 
   for (const b of blocks) {
     switch (b.type) {
-      case 'hr':
-        frag.appendChild(document.createElement('hr'));
-        break;
-      case 'heading': {
-        const level = b.level;
-        const el = document.createElement(level <= 4 ? 'h' + level : 'h6');
-        el.innerHTML = b.html;
-        const safeId = ('h-' + level + '-' + b.text.replace(/\s+/g, '-').slice(0, 40)).replace(/[^\w\u4e00-\u9fa5-]/g, '');
-        el.id = safeId;
-        el.dataset.level = level;
-        frag.appendChild(el);
-        tocHeadings.push({ level, text: b.text, el });
-        break;
-      }
-      case 'list': {
-        const wrap = document.createElement(b.ordered ? 'ol' : 'ul');
-        b.items.forEach((it) => {
-          const li = document.createElement('li');
-          li.innerHTML = inlineHtml(it);
-          wrap.appendChild(li);
+    case 'hr':
+      frag.appendChild(document.createElement('hr'));
+      break;
+    case 'heading': {
+      const level = b.level;
+      const el = document.createElement(level <= 4 ? 'h' + level : 'h6');
+      el.innerHTML = b.html;
+      const safeId = ('h-' + level + '-' + b.text.replace(/\s+/g, '-').slice(0, 40)).replace(/[^\w\u4e00-\u9fa5-]/g, '');
+      el.id = safeId;
+      el.dataset.level = level;
+      frag.appendChild(el);
+      tocHeadings.push({ level, text: b.text, el });
+      break;
+    }
+    case 'list': {
+      const wrap = document.createElement(b.ordered ? 'ol' : 'ul');
+      b.items.forEach((it) => {
+        const li = document.createElement('li');
+        li.innerHTML = inlineHtml(it);
+        wrap.appendChild(li);
+      });
+      frag.appendChild(wrap);
+      break;
+    }
+    case 'quote': {
+      const quote = document.createElement('blockquote');
+      quote.innerHTML = b.html;
+      frag.appendChild(quote);
+      break;
+    }
+    case 'table': {
+      const table = document.createElement('table');
+      b.rows.forEach((cells, ri) => {
+        const tr = document.createElement('tr');
+        cells.forEach((c) => {
+          const cell = document.createElement(ri === 0 ? 'th' : 'td');
+          cell.innerHTML = inlineHtml(c);
+          tr.appendChild(cell);
         });
-        frag.appendChild(wrap);
-        break;
-      }
-      case 'quote': {
-        const quote = document.createElement('blockquote');
-        quote.innerHTML = b.html;
-        frag.appendChild(quote);
-        break;
-      }
-      case 'table': {
-        const table = document.createElement('table');
-        b.rows.forEach((cells, ri) => {
-          const tr = document.createElement('tr');
-          cells.forEach((c) => {
-            const cell = document.createElement(ri === 0 ? 'th' : 'td');
-            cell.innerHTML = inlineHtml(c);
-            tr.appendChild(cell);
-          });
-          table.appendChild(tr);
-        });
-        frag.appendChild(table);
-        break;
-      }
-      default: {
-        const p = document.createElement('p');
-        p.innerHTML = b.html;
-        frag.appendChild(p);
-      }
+        table.appendChild(tr);
+      });
+      frag.appendChild(table);
+      break;
+    }
+    default: {
+      const p = document.createElement('p');
+      p.innerHTML = b.html;
+      frag.appendChild(p);
+    }
     }
   }
   return { frag, headings: tocHeadings };

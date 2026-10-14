@@ -1,5 +1,6 @@
 <script setup>
 import { placeholderCharacters } from '../js/pages.js';
+import { openImportDialog } from '../js/new-character.js';
 import { useApp } from '../composables/useApp';
 
 const { go } = useApp();
@@ -11,6 +12,9 @@ function openRow(id) {
 }
 function newCharacter() {
   go('new-character');
+}
+function openImport() {
+  openImportDialog();
 }
 </script>
 
@@ -43,7 +47,7 @@ function newCharacter() {
   <div class="char-empty-note">（以上为占位数据仅作展示）</div>
 
   <!-- 右下角悬浮：导入 + 新建 -->
-  <button type="button" class="fab fab-import" title="导入角色卡" aria-label="导入角色卡">
+  <button type="button" class="fab fab-import" title="导入角色卡" aria-label="导入角色卡" @click="openImport">
     <span class="fab-import-icon">⬇</span>
   </button>
   <button type="button" class="fab" title="新建角色" aria-label="新建角色" @click="newCharacter">

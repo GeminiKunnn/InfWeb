@@ -12,7 +12,7 @@
  */
 
 import {
-  renderEmptyPage, renderRulesPage, renderOtherPage, renderResourcesPage,
+  renderRulesPage, renderOtherPage, renderResourcesPage,
   renderRealmPage, renderChangelogPage, renderLandingPage, renderCharactersPage,
 } from './pages.js';
 
@@ -76,7 +76,7 @@ function renderPage() {
   // 主页面：只显示 landing，不渲染应用内页面（也避免高亮菜单项）
   if (appState.screen === 'landing') {
     // 回到主界面即清除已保存的应用内位置，下次刷新仍为主界面
-    try { localStorage.removeItem(APPSTATE_KEY); } catch (e) {}
+    try { localStorage.removeItem(APPSTATE_KEY); } catch (e) { /* 隐私模式等忽略 */ }
     renderLandingPage();
     return;
   }
@@ -199,7 +199,6 @@ function deleteRow(kind, index) {
 
 function setupGlobalEvent() {
   document.addEventListener('click', (e) => {
-    const sidebar = document.querySelector('[data-action="toggle-sidebar"]');
     if (e.target.closest('[data-action="toggle-sidebar"]')) {
       toggleSidebar();
       return;
