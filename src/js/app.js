@@ -26,6 +26,7 @@ import {
   newPurchase,
   newRecord,
   newReduction,
+  newOwnedResource,
   api,
 } from './store.js';
 import { character, setCharacter, appState, sheetState } from './state.js';
@@ -183,15 +184,18 @@ function removeReductionRow(index) {
   renderPage();
 }
 
-function deleteRow(kind, index) {
-  if (kind === 'spell') character.spells.splice(index, 1);
-  else if (kind === 'attack') character.specialAttacks.splice(index, 1);
-  else if (kind === 'energy') character.energyPools.splice(index, 1);
+function deleteRow(kind, index, rowId) {
+  // 有稳定 id 的列表按 id 找行（重排后仍精确命中）；其余按 index
+  const byId = (arr) => (typeof rowId === 'string' && rowId ? arr.findIndex((x) => x.id === rowId) : index);
+  if (kind === 'spell') character.spells.splice(byId(character.spells), 1);
+  else if (kind === 'attack') character.specialAttacks.splice(byId(character.specialAttacks), 1);
+  else if (kind === 'energy') character.energyPools.splice(byId(character.energyPools), 1);
   else if (kind === 'perk') character.perks.splice(index, 1);
   else if (kind === 'equip') character.equipment.splice(index, 1);
   else if (kind === 'trait') character.traits.splice(index, 1);
   else if (kind === 'purchase') character.resources.purchases.splice(index, 1);
   else if (kind === 'record') character.resources.records.splice(index, 1);
+  else if (kind === 'owned') character.ownedResources.splice(index, 1);
   renderPage();
 }
 
@@ -314,9 +318,10 @@ function setupGlobalEvent() {
     else if (act === 'add-purchase') addPurchaseRow();
     else if (act === 'add-record') addRecordRow();
     else if (act === 'add-reduction') addReductionRow();
+    else if (act === 'add-owned') character.ownedResources.push(newOwnedResource()), renderPage();
     else if (act === 'remove-reduction') removeReductionRow(Number(btn.dataset.index));
     else if (act === 'toggle-perk-box') togglePerkBox(btn);
-    else if (act === 'del-row') deleteRow(btn.dataset.kind, Number(btn.dataset.index));
+    else if (act === 'del-row') deleteRow(btn.dataset.kind, Number(btn.dataset.index), btn.dataset.rowid);
   });
 }
 

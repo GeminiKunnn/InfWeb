@@ -6,27 +6,55 @@
  * 仅依赖 state.js（读取 character）；不含任何渲染/事件逻辑。
  */
 import { character } from './state.js';
+import { ATTRIBUTES, BASE_ATTACK_PRESETS } from './character-config.js';
 
 /* ------------------------- 属性 / 技能基础计算 ------------------------- */
 
-function attrsOf(attrId) {
-  return character.attributes[attrId];
+// 属性 id → 在 store.attributes 各数组中的下标（ATTRIBUTES 顺序）
+function attrIndexOf(attrId) {
+  return ATTRIBUTES.findIndex((a) => a.id === attrId);
+}
+// 属性「基础」（建卡点）
+function attrBaseOf(attrId) {
+  const i = attrIndexOf(attrId);
+  return i >= 0 && character.attributes.base ? Number(character.attributes.base[i]) || 0 : 0;
 }
 
-/*
- * 属性两档（对照 Excel 角色属性信息表，列：属性/属性值/传奇/基础/内在/修行/内在/器械/完美/其它/其它/检定值）：
- *   属性值 attrPool  = 基础 + 内在 + 修行
- *   检定值 attrValue = 属性值 + 内在(第二) + 器械 + 完美 + 其它 + 其它
+/* 属性两档（对照 Excel 角色属性信息表）：
+ *   属性值 attrPool  = 基础 + 属性值加值(内在/修行) − 属性减值
+ *   检定值 attrValue = 属性值 + 检定值加值(内在/修行/器械/完美/士气/其它) − 检定减值
  *   传奇   = ⌊(属性值 - 1) / 5⌋
+ * 属性值加值与检定值加值是两套独立来源，分别存在 store.attributes.poolBonus / checkBonus（按属性顺序、全属性共用来源名）。
  */
+function sum(arr) {
+  return (arr || []).reduce((s, b) => s + (Number(b) || 0), 0);
+}
+// 该属性的「属性值加值」总和（poolBonus[idx]）
+function attrPoolBonusSum(attrId) {
+  const i = attrIndexOf(attrId);
+  return sum(character.attributes.poolBonus[i]);
+}
+// 该属性的「检定值加值」总和（checkBonus[idx]）
+function attrCheckBonusSum(attrId) {
+  const i = attrIndexOf(attrId);
+  return sum(character.attributes.checkBonus[i]);
+}
+// 属性减值 / 检定减值（按属性顺序存于 store.attributes.penalty / checkPenalty）
+function attrPenaltyOf(attrId) {
+  const i = attrIndexOf(attrId);
+  return i >= 0 && character.attributes.penalty ? Number(character.attributes.penalty[i]) || 0 : 0;
+}
+function checkPenaltyOf(attrId) {
+  const i = attrIndexOf(attrId);
+  return i >= 0 && character.attributes.checkPenalty ? Number(character.attributes.checkPenalty[i]) || 0 : 0;
+}
+
 function attrPool(attrId) {
-  const a = attrsOf(attrId);
-  return (a.base || 0) + (a.inner || 0) + (a.practice || 0);
+  return attrBaseOf(attrId) + attrPoolBonusSum(attrId) - attrPenaltyOf(attrId);
 }
 
 function attrValue(attrId) {
-  const a = attrsOf(attrId);
-  return attrPool(attrId) + (a.inner2 || 0) + (a.gear || 0) + (a.perfect || 0) + (a.other || 0) + (a.other2 || 0);
+  return attrPool(attrId) + attrCheckBonusSum(attrId) - checkPenaltyOf(attrId);
 }
 
 function attrLegendary(attrId) {
@@ -53,24 +81,39 @@ function nm(n, m) {
   return Number(m) > 0 ? `${n}+${m}` : `${n}`;
 }
 
-// 五种基础攻击：名称 / 检定DP / 伤害上限 / 附加成功
+// 基础攻击：把 store 中的可变数据与静态预设（BASE_ATTACK_PRESETS）合并成渲染/计算用的完整对象
+function resolveBaseAttack(atk) {
+  const preset = BASE_ATTACK_PRESETS.find((p) => p.id === atk.id) || {};
+  return { ...preset, ...atk };
+}
 function baseAttackData(atk) {
-  const attrV = attrValue(atk.attr);
+  atk = resolveBaseAttack(atk);
   const skillV = skillValue(atk.skill);
-  const legAttr = attrLegendary(atk.attr);
   const wdmg = atk.weaponDamage != null ? Number(atk.weaponDamage) : 0;
   const ammo = atk.ammoDamage != null ? Number(atk.ammoDamage) : 0;
-  const addDmg = wdmg + (atk.id === 'semi' || atk.id === 'full' || atk.id === 'bow' ? ammo : 0);
-  const bonusSum = (atk.bonuses || []).reduce((s, b) => s + (Number(b) || 0), 0) + (Number(atk.other) || 0);
-  const checkDP = attrV + skillV + addDmg + (Number(atk.specialty) || 0) + bonusSum;
+  const ammoCount = atk.ammoCount != null ? Number(atk.ammoCount) : 0;
+  const hasAmmo = atk.id === 'semi' || atk.id === 'full' || atk.id === 'bow';
+  const bonusSum = sum(atk.bonuses) + (Number(atk.other) || 0);
+
+  // —— 检定 DP ——
+  let checkDP;
+  if (atk.id === 'full') {
+    // 全自动（后端 §3.4）：((武器伤+弹药伤)×弹药数) + ⌊(P敏+P力)/2⌋ + S枪械 + 专业 + Σ加成 + 其他
+    const poolAvg = Math.floor((attrPool('dexterity') + attrPool('strength')) / 2);
+    checkDP = (wdmg + ammo) * ammoCount + poolAvg + skillV + (Number(atk.specialty) || 0) + sum(atk.bonuses) + (Number(atk.other) || 0);
+  } else {
+    // 白刃/肉搏/半自动/弓（后端 §3.7）：V(主) + S + 专业 + 武器伤害(+弹药) + Σ加成 + 其他
+    const addDmg = wdmg + (hasAmmo ? ammo : 0);
+    checkDP = attrValue(atk.attr) + skillV + addDmg + (Number(atk.specialty) || 0) + bonusSum;
+  }
+
+  // —— 伤害上限（只读公式，后端 §3.1）：P(主) + S + 2×L(主) + 其他；枪械/弓 + 弹药伤害（不加成、不乘弹药数）——
   const damageCap =
-    addDmg +
-    Number(attrsOf(atk.attr).base) +
-    Number(character.skills[atk.skill].base) +
-    ((Number(atk.specialty) || 0) > 0 ? 1 : 0) +
-    legAttr * 2 +
-    (Number(character.geneLock) || 0);
-  const extraSuccess = skillExtraSuccess(atk.skill) + legAttr + bonusSum + (atk.extraSuccessBonus || []).reduce((s, b) => s + (Number(b) || 0), 0);
+    attrPool(atk.attr) + skillV + attrLegendary(atk.attr) * 2 + (Number(atk.other) || 0) +
+    (hasAmmo ? ammo : 0);
+
+  // 附加成功 m = 技能附加 + 传奇 + 附加加值1..6（与豁免口径一致：n 侧加成不重复计入 m）
+  const extraSuccess = skillExtraSuccess(atk.skill) + attrLegendary(atk.attr) + sum(atk.extraSuccessBonus);
   return { label: atk.label, checkDP, damageCap, extraSuccess };
 }
 
@@ -90,28 +133,28 @@ const SAVE_DEFS = [
   { name: '强韧豁免', attr: 'stamina', skill: 'survival', attrName: '耐力', skillName: '求生', legName: '传奇耐力' },
 ];
 
-// 单个豁免的「附加成功 m」= 技能附加成功 + 主属性传奇附加成功 + 附加加值1..5(bonus+5..+9)
+// 单个豁免的「附加成功 m」= 技能附加成功 + 主属性传奇附加成功 + 附加加值1..6(bonus[i][6..11])
 function saveExtraSuccess(i) {
   const dd = character.derivedDetail.saves;
-  const b = dd.bonus;
+  const b = dd.bonus[i];
   return (
     skillExtraSuccess(SAVE_DEFS[i].skill) + attrLegendary(SAVE_DEFS[i].attr) +
-    (Number(b[i * 10 + 5]) || 0) + (Number(b[i * 10 + 6]) || 0) + (Number(b[i * 10 + 7]) || 0) +
-    (Number(b[i * 10 + 8]) || 0) + (Number(b[i * 10 + 9]) || 0)
+    (Number(b[6]) || 0) + (Number(b[7]) || 0) + (Number(b[8]) || 0) +
+    (Number(b[9]) || 0) + (Number(b[10]) || 0) + (Number(b[11]) || 0)
   );
 }
 
 // 单个豁免的「总计 n」（不含附加成功）：
-// 属性检定 + 技能检定 + 传奇属性×3 + 专业 + 专长 + 加成1..5
+// 属性检定 + 技能检定 + 传奇属性×3 + 专业 + 专长 + 加成1..6(bonus[i][0..5])
 function saveTotalOf(i) {
   const s = SAVE_DEFS[i];
   const dd = character.derivedDetail.saves;
-  const b = dd.bonus;
+  const b = dd.bonus[i];
   return (
     attrValue(s.attr) + skillValue(s.skill) + attrLegendary(s.attr) * 3 +
     (Number(dd.special[i]) || 0) + (Number(dd.feat[i]) || 0) +
-    (Number(b[i * 10]) || 0) + (Number(b[i * 10 + 1]) || 0) + (Number(b[i * 10 + 2]) || 0) +
-    (Number(b[i * 10 + 3]) || 0) + (Number(b[i * 10 + 4]) || 0)
+    (Number(b[0]) || 0) + (Number(b[1]) || 0) + (Number(b[2]) || 0) +
+    (Number(b[3]) || 0) + (Number(b[4]) || 0) + (Number(b[5]) || 0)
   );
 }
 
@@ -119,6 +162,18 @@ function saveTotalOf(i) {
 function saveDisplayOf(i) {
   return nm(saveTotalOf(i), saveExtraSuccess(i));
 }
+
+/*
+ * 加成栏显示名（前端展示用；存储仍为数字数组，按序号对应）：
+ *   DERIVED_BONUS_LABELS  —— 属性派生/豁免的「加成1..6」= 内在/修行/器械/完美/士气/其它（专长走独立 feat 字段）
+ *   FEAT_BONUS_LABELS     —— 敏感范围/基础攻击/特殊攻击/能量池的「加成」= 专长/内在/修行/器械/完美/士气/其它（7，专长为 index0）
+ *   EXTRA_SUCCESS_LABELS  —— 豁免/攻击的「附加加值1..6」= (附加)内在/修行/器械/完美/士气/其它（仅首项标注附加；不含专长）
+ *   SPELL_BONUS_LABELS    —— 法术「加成」= 专长/内在/修行/器械/完美/士气/其它（n 侧，7）
+ */
+const DERIVED_BONUS_LABELS = ['内在', '修行', '器械', '完美', '士气', '其它'];
+const FEAT_BONUS_LABELS = ['专长', '内在', '修行', '器械', '完美', '士气', '其它'];
+const EXTRA_SUCCESS_LABELS = ['(附加)内在', '修行', '器械', '完美', '士气', '其它'];
+const SPELL_BONUS_LABELS = FEAT_BONUS_LABELS;
 
 /* ------------------------- 攻击 / 能量池 ------------------------- */
 
@@ -129,32 +184,39 @@ function attackCheckDP(attack) {
     skillValue(attack.skill) +
     (Number(attack.weaponDamage) || 0) +
     (Number(attack.specialty) || 0) +
-    bonusSum +
-    skillExtraSuccess(attack.skill)
+    bonusSum
   );
 }
 
 function energyTotal(pool) {
-  const bonusSum = (pool.bonuses || []).reduce((s, b) => s + (Number(b) || 0), 0);
-  let total = attrValue(pool.attr1) + bonusSum;
-  if (pool.attr2) total += attrValue(pool.attr2);
+  const bonusSum = sum(pool.bonuses);
+  // 后端 §3.3：用属性池 P（attrPool），不是检定值 V
+  let total = attrPool(pool.attr1) + bonusSum;
+  if (pool.attr2) total += attrPool(pool.attr2);
   return total;
 }
 
 export {
-  attrsOf,
   attrPool,
   attrValue,
   attrLegendary,
+  attrBaseOf,
+  attrPenaltyOf,
+  checkPenaltyOf,
+  resolveBaseAttack,
+  baseAttackData,
   skillValue,
   skillExtraSuccess,
   nm,
-  baseAttackData,
   sensitiveRangeTotal,
   SAVE_DEFS,
   saveExtraSuccess,
   saveTotalOf,
   saveDisplayOf,
+  DERIVED_BONUS_LABELS,
+  FEAT_BONUS_LABELS,
+  EXTRA_SUCCESS_LABELS,
+  SPELL_BONUS_LABELS,
   attackCheckDP,
   energyTotal,
 };

@@ -60,4 +60,20 @@ const SKILLS = [
 
 const GROUPS = ['生理', '心智', '互动'];
 
-export { ATTRIBUTES, SKILLS, GROUPS };
+// —— 属性加值来源名（全属性共用，顺序即 store.attributes 各二维数组的内层下标）——
+// 属性值加值来源：2 项
+const ATTRIBUTE_POOL_BONUS_LABELS = ['内在', '修行'];
+// 检定值加值来源：6 项
+const ATTRIBUTE_CHECK_BONUS_LABELS = ['内在', '修行', '器械', '完美', '士气', '其它'];
+
+// —— 基础攻击预设（id → 静态信息；用户可变的数据不在此处，存于角色 store）——
+// 半自动/全自动为枪械类（有弹药伤害），全自动额外有弹匣弹药数；弓箭用运动+箭矢伤害
+const BASE_ATTACK_PRESETS = [
+  { id: 'whiteblade', label: '白刃攻击', attr: 'strength', skill: 'weaponry' },
+  { id: 'brawl', label: '肉搏攻击', attr: 'strength', skill: 'brawl' },
+  { id: 'semi', label: '半自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoDamage: true },
+  { id: 'full', label: '全自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoCount: true, ammoDamage: true },
+  { id: 'bow', label: '弓箭攻击', attr: 'dexterity', skill: 'athletics', ammoDamage: true, bow: true },
+];
+
+export { ATTRIBUTES, SKILLS, GROUPS, ATTRIBUTE_POOL_BONUS_LABELS, ATTRIBUTE_CHECK_BONUS_LABELS, BASE_ATTACK_PRESETS };

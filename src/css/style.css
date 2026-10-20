@@ -11,6 +11,7 @@
   --accent: #2f6fed;
   --accent-weak: #eef3ff;
   --ok: #2e9e5b;
+  --danger: #d93025;
   --border-radius: 10px;
 }
 
@@ -903,6 +904,26 @@ body {
 }
 .legendary-cell {
   font-size: 14px;
+}
+
+/* ---------- 属性减值块（位于「属性加值」同一外框体内属性表下方） ---------- */
+.attr-penalty {
+  margin-top: 18px;
+}
+.attr-penalty-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  border-left: 4px solid var(--danger);
+  padding-left: 10px;
+}
+.attr-penalty-table th.num-head,
+.attr-penalty-table td {
+  min-width: 52px;
+}
+.attr-penalty-table .penalty-label {
+  text-align: left;
+  font-weight: 700;
+  background: #fafbfc;
 }
 
 /* ---------- Sheet 标签栏（类似 Excel 表单切换） ---------- */

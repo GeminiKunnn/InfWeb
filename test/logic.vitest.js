@@ -53,9 +53,9 @@ describe('store：emptyCharacter / normalize 结构', () => {
   it('emptyCharacter 含概念段九属性二十一技能且属性基础为默认', () => {
     const c = emptyCharacter();
     expect(c.concepts.name).toBe('');
-    expect(Object.keys(c.attributes)).toHaveLength(9);
+    expect(c.attributes.base).toHaveLength(9); // 属性基础数组：按 ATTRIBUTES 顺序
     expect(Object.keys(c.skills)).toHaveLength(21);
-    expect(c.attributes.strength.base).toBe(2);
+    expect(c.attributes.base[0]).toBe(2); // strength 默认
   });
   it('newSpell 工厂返回可增删行的法术对象', () => {
     const s = newSpell();
@@ -65,25 +65,25 @@ describe('store：emptyCharacter / normalize 结构', () => {
 });
 
 describe('calc：属性两档 / 传奇值', () => {
-  it('属性值 = 基础+内在+修行', () => {
+  it('属性值 = 基础+属性值加值(内在/修行)-属性减值', () => {
     const c = fresh();
-    c.attributes.strength.base = 3;
-    c.attributes.strength.inner = 1;
-    c.attributes.strength.practice = 1;
+    c.attributes.base[0] = 3; // strength 基础
+    c.attributes.poolBonus[0][0] = 1; // 内在
+    c.attributes.poolBonus[0][1] = 1; // 修行
     expect(attrPool('strength')).toBe(5);
   });
-  it('检定值 = 属性值 + 内在2+器械+完美+其它+其它2', () => {
+  it('检定值 = 属性值 + 检定值加值 - 检定减值', () => {
     const c = fresh();
-    c.attributes.strength.base = 4; // pool=4
-    c.attributes.strength.inner2 = 1;
-    c.attributes.strength.gear = 2;
+    c.attributes.base[0] = 4; // pool=4
+    c.attributes.checkBonus[0][0] = 1; // 内在
+    c.attributes.checkBonus[0][2] = 2; // 器械
     expect(attrValue('strength')).toBe(7);
   });
   it('传奇 = ⌊(属性值-1)/5⌋', () => {
     const c = fresh();
-    c.attributes.strength.base = 6;
+    c.attributes.base[0] = 6;
     expect(attrLegendary('strength')).toBe(1);
-    c.attributes.strength.base = 11;
+    c.attributes.base[0] = 11;
     expect(attrLegendary('strength')).toBe(2);
   });
 });
@@ -118,17 +118,17 @@ describe('calc：豁免', () => {
   });
   it('豁免总计 = 属性检定+技能检定+传奇×3+专业+专长+加成', () => {
     const c = fresh();
-    c.attributes.dexterity.base = 6; // dexValue=6, leg=1
+    c.attributes.base[1] = 6; // dexterity，dexValue=6, leg=1
     c.skills.athletics.base = 3; // skill=3
     c.derivedDetail.saves.special[0] = 1;
     c.derivedDetail.saves.feat[0] = 0;
-    c.derivedDetail.saves.bonus[0] = 2;
+    c.derivedDetail.saves.bonus[0][0] = 2; // 豁免0 的 加成1(下标0)
     // total = 6 + 3 + 1*3 + 1 + 0 + 2 = 15
     expect(saveTotalOf(0)).toBe(15);
   });
   it('豁免附加成功含技能+传奇属性+额外加值', () => {
     const c = fresh();
-    c.attributes.dexterity.base = 9; // leg=1
+    c.attributes.base[1] = 9; // dexterity，leg=1
     c.skills.athletics.base = 6; // extra=2 (5,6→5 gives1;>=6→... 6>=5→1,6<7→no) -> 1
     expect(saveExtraSuccess(0)).toBe(1 + 1); // leg1 + skillExtra(6)=1
   });
@@ -141,7 +141,7 @@ describe('calc：豁免', () => {
 describe('calc：基础攻击 / 能量池', () => {
   it('攻击检定 DP = 属性检定+技能检定+其他', () => {
     const c = fresh();
-    c.attributes.strength.base = 4; // value=4
+    c.attributes.base[0] = 4; // strength，value=4
     c.skills.weaponry.base = 3; // value=3, extra=0 (3<5)
     const atk = {
       id: 'whiteblade', attr: 'strength', skill: 'weaponry',
@@ -152,7 +152,7 @@ describe('calc：基础攻击 / 能量池', () => {
   });
   it('baseAttackData 含 label/checkDP/damageCap/extraSuccess', () => {
     const c = fresh();
-    c.attributes.dexterity.base = 6; // dexValue=6, leg=1
+    c.attributes.base[1] = 6; // dexterity，dexValue=6, leg=1
     c.skills.firearms.base = 5; // skill=5, extra=1
     const atk = {
       id: 'semi', label: '半自动枪械攻击', attr: 'dexterity', skill: 'firearms',
@@ -162,14 +162,28 @@ describe('calc：基础攻击 / 能量池', () => {
     expect(b.label).toBe('半自动枪械攻击');
     // checkDP = dexValue(6) + skill(5) + addDmg(1) = 12
     expect(b.checkDP).toBe(12);
-    // damageCap = addDmg(1) + 属性基础(6) + 技能基础(5) + 传奇*2(2) + geneLock(0) = 14
-    expect(b.damageCap).toBe(14);
+    // damageCap（后端 §3.1）= P(六) + S(5) + 传奇*2(2) + other(0) + 弹药(0) = 13
+    expect(b.damageCap).toBe(13);
     // extraSuccess = 技能附加(1) + 传奇(1) = 2
     expect(b.extraSuccess).toBe(2);
   });
-  it('能量池总值 = 主属性检定(+次属性检定)+加成', () => {
+  it('n 侧加成不重复计入 m（附加成功只吃附加加值）', () => {
     const c = fresh();
-    c.attributes.composure.base = 3; // value=3
+    c.attributes.base[1] = 6; // dexterity，leg=1
+    c.skills.firearms.base = 5; // skill=5, extra=1
+    // n 侧有加成（bonuses + other 大幅上调），但 m 不应受其影响
+    const atk = {
+      id: 'semi', label: '半自动枪械攻击', attr: 'dexterity', skill: 'firearms',
+      ammoDamage: 0, weaponDamage: 1, specialty: 3, bonuses: [5,5,5,5,5], other: 9,
+      extraSuccessBonus: [2,0,0,0,0,0],
+    };
+    const b = baseAttackData(atk);
+    // extraSuccess = 技能附加(1) + 传奇(1) + 附加加值(2) = 4；n侧加成(25+9+专业)不进入 m
+    expect(b.extraSuccess).toBe(4);
+  });
+  it('能量池总值 = 关键属性池 P(+次级属性池)+加成（后端 §3.3）', () => {
+    const c = fresh();
+    c.attributes.base[6] = 3; // composure，value=3
     const pool = { attr1: 'composure', attr2: null, bonuses: [1, 0, 0, 0, 0] };
     expect(energyTotal(pool)).toBe(3 + 1);
   });

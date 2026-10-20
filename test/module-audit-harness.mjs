@@ -39,8 +39,8 @@ const AUDIT = `
   line('skillExtraSuccess(weaponry)='+skillExtraSuccess('weaponry'));
   line('attackCheckDP(brawl preset)='+attackCheckDP({attr:'strength',skill:'brawl',weaponDamage:0,specialty:0,bonuses:[0,0,0,0]}));
   line('spellBaseDP='+spellBaseDP());
-  const spl = {potency:0,cost:0,specialty:0,bonuses:[0,0,0,0,0,0],dmgBonuses:[0,0,0]};
-  line('spellCheckDP='+spellCheckDP(spl)+' spellDamageCap='+spellDamageCap(spl));
+  const spl = {potency:0,cost:0,specialty:0,bonuses:[0,0,0,0,0,0],extraSuccessBonus:[1,0,0,0,0,0]};
+  line('spellCheckDP='+spellCheckDP(spl)+' spellDamageCap='+spellDamageCap(spl)+' spellExtraSuccess='+spellExtraSuccess(spl));
   line('energyTotal(single attr, no bonus)='+energyTotal({attr1:'intelligence',attr2:'',bonuses:[0,0,0]}));
   line('perkAllocation (tier1..3 each once)='+ (ch.perks.push({tier:1},{tier:2},{tier:3}), perkAllocation()));
   ch.perks=[];
@@ -49,13 +49,13 @@ const AUDIT = `
 
   // ---- A leveled test: push attrs/skills to trigger legendary & extras ----
   ch = emptyCharacter(); character = ch;
-  ch.attributes.strength.base = 6;  // value 6 -> legendary (6-1)/5=1
-  ch.attributes.dexterity.base = 11; // legendary (11-1)/5=2
-  ch.attributes.intelligence.base = 16; // legendary 3
-  ch.attributes.composure.base = 7;  // composure legendary 1  (for gene lock & willpower uses presence=沉着)
-  ch.attributes.resolve.base = 7;    // resolve legendary 1
-  ch.attributes.perception.base = 21; // legendary 4
-  ch.attributes.stamina.base = 2;
+  ch.attributes.base[0] = 6;  // strength，value 6 -> legendary (6-1)/5=1
+  ch.attributes.base[1] = 11; // dexterity，legendary (11-1)/5=2
+  ch.attributes.base[3] = 16; // intelligence，legendary 3
+  ch.attributes.base[6] = 7;  // composure，legendary 1  (for gene lock & willpower uses presence=沉着)
+  ch.attributes.base[5] = 7;  // resolve，legendary 1
+  ch.attributes.base[4] = 21; // perception，legendary 4
+  ch.attributes.base[2] = 2;  // stamina
   ch.skills.weaponry.base = 5;  // extra success 1
   ch.skills.athletics.base = 7; // extra success 2
   ch.skills.brawl.base = 0;
@@ -70,22 +70,22 @@ const AUDIT = `
   line('geneLock(composure) min(base+legendary,10) with base0 = '+ Math.min((0)+attrLegendary('composure'),10));
   line('armorExtraSuccess(stamina leg)= '+attrLegendary('stamina'));
 
-  // ---- attr split: 属性值(基础+内修) vs 检定值(+内2+械完它+它2)；传奇按属性值 ----
-  ch.attributes.dexterity.gear = 3;   // dex base11 -> pool 11, 检定值 14
+  // ---- attr split: 属性值(基础+属性值加值) vs 检定值(属性值+检定值加值)；传奇按属性值 ----
+  ch.attributes.checkBonus[1][2] = 3;   // dexterity 检定值加值·器械 = 3 -> pool 11, 检定值 14
   line('attrSplit dex pool='+attrPool('dexterity')+' value='+attrValue('dexterity')+' leg='+attrLegendary('dexterity'));
   line('  expect pool=11 value=11+inner2 0+3=14 leg=((11-1)/5)=2');
-  ch.attributes.dexterity.gear = 0;
+  ch.attributes.checkBonus[1][2] = 0;
 
   // ---- Base attacks: verify each DP & cap against expected ----
   ch.baseAttacks.forEach((atk)=>{
     const d = baseAttackData(atk);
-    line('atk '+atk.id+' label='+atk.label+' checkDP='+d.checkDP+' damageCap='+d.damageCap+' extraSuccess='+d.extraSuccess);
+    line('atk '+atk.id+' label='+d.label+' checkDP='+d.checkDP+' damageCap='+d.damageCap+' extraSuccess='+d.extraSuccess);
   });
 
   // ---- F3 willpower: 沉着(presence) legendary must add to willpower ----
   ch = emptyCharacter(); character = ch;
-  ch.attributes.presence.base = 7;   // 沉着 -> legendary 1
-  ch.attributes.resolve.base = 7;    // 决心 -> legendary 1
+  ch.attributes.base[8] = 7;   // presence(沉着) -> legendary 1
+  ch.attributes.base[5] = 7;   // resolve(决心) -> legendary 1
   line('');
   line('== F3 willpower (沉着=7 leg1, 决心=7 leg1) ==');
   line('legendary presence='+attrLegendary('presence')+' resolve='+attrLegendary('resolve'));
@@ -94,7 +94,12 @@ const AUDIT = `
 
   // ---- F2/F5 saves: verify saveTotalOf (n, 不含附加成功) 与 saveDisplayOf (n+m) ----
   const dd = character.derivedDetail;
-  dd.saves.special = [1, 0, 0]; dd.saves.feat = [2, 0, 0]; dd.saves.bonus = [0,1,2,3,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0]; // save0 加成[0..5], save1 加成[6..11]
+  dd.saves.special = [1, 0, 0]; dd.saves.feat = [2, 0, 0];
+  dd.saves.bonus = [
+    [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0], // 反射: 加成1-6和=3 + 附加加值1-6和=3
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 意志: 全0
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 强韧: 全0
+  ];
   line('saveTotalOf(0)=' + saveTotalOf(0));
   line('saveTotalOf(1)=' + saveTotalOf(1) + ' willSave base=' + derivedValues().willSave);
   line('saveExtraSuccess(1)=' + saveExtraSuccess(1));

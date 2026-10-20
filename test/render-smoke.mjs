@@ -92,9 +92,9 @@ const TEST = `
   const results = [];
   const ok = (name, cond, detail) => results.push((cond?'PASS':'FAIL')+': '+name);
 
-  character.attributes.presence.base = 7;
-  character.attributes.resolve.base = 7;
-  character.attributes.dexterity.base = 11;
+  character.attributes.base[8] = 7;  // presence(沉着)
+  character.attributes.base[5] = 7;  // resolve(决心)
+  character.attributes.base[1] = 11; // dexterity
   character.defense.reduction = [{ type: '物理', amount: 3, source: '血统强化' }];
 
   const wrap = renderAttrDetailSheet();
@@ -128,11 +128,11 @@ const TEST = `
   ok('反射豁免总值=n+m(17+2)', saveDisp('反射豁免') === '17+2', saveDisp('反射豁免'));
   ok('意志豁免总值=n+m(10+1)', saveDisp('意志豁免') === '10+1', saveDisp('意志豁免'));
   ok('强韧豁免总值=2(m0隐藏+m)', saveDisp('强韧豁免') === '2', saveDisp('强韧豁免'));
-  // 每个豁免框：主体 专业+专长+加成1..3，右侧附加加值 附加加值1..5（竖线分隔）
+  // 每个豁免框：主体 专业+专长+加成(6来源)，右侧附加加值 附加加值(6来源)（竖线分隔）
   const refRow = boxByTitle('反射豁免').querySelector('.detail-box-inputs');
   const labelTexts = refRow.querySelectorAll('.detail-input-label').map(l=>l._text);
-  ok('豁免框含专业/专长/加成1..5+附加加值1..5', JSON.stringify(labelTexts) === JSON.stringify(['专业','专长','加成1','加成2','加成3','加成4','加成5','附加加值1','附加加值2','附加加值3','附加加值4','附加加值5']), labelTexts);
-  ok('豁免框输入数=12(主体7+附加加值5)', refRow.querySelectorAll('.detail-input').length === 12, refRow.querySelectorAll('.detail-input').length);
+  ok('豁免框含专业/专长/加成6来源+附加加值6来源', JSON.stringify(labelTexts) === JSON.stringify(['专业','专长','内在','修行','器械','完美','士气','其它','(附加)内在','修行','器械','完美','士气','其它']), labelTexts);
+  ok('豁免框输入数=14(主体8+附加加值6)', refRow.querySelectorAll('.detail-input').length === 14, refRow.querySelectorAll('.detail-input').length);
   ok('豁免框附加成功区存在(带竖线)', !!boxByTitle('反射豁免').querySelector('.detail-extra-succ'), 'extra-succ');
   ok('豁免框附加成功小字已删除(灰线右侧无文字)', !boxByTitle('反射豁免').querySelector('.detail-extra-succ-label'), 'label removed');
   const refTip = boxByTitle('反射豁免').querySelector('.detail-tip');
@@ -155,18 +155,18 @@ const TEST = `
   const attrCells = attrRows.slice(firstGroupIdx+1, firstGroupIdx+4).map((tr)=>tr.querySelector('.row-label') && tr.querySelector('.row-label')._text);
   ok('生理系下依次为 力量/敏捷/耐力', JSON.stringify(attrCells) === JSON.stringify(physiologyAttrs), attrCells);
 
-  // 属性值(基础+内修) vs 检定值(值+内2+械完它+它2)；传奇按属性值
-  character.attributes.strength.base = 6;   // pool 6
-  character.attributes.strength.gear = 2;   // +2
-  character.attributes.strength.inner2 = 1; // +1
-  character.attributes.strength.other2 = 3; // +3 -> 检定值 12
+  // 属性值(基础+属性值加值) vs 检定值(属性值+检定值加值)；传奇按属性值
+  character.attributes.base[0] = 6;                 // strength 基础 -> pool 6
+  character.attributes.checkBonus[0][2] = 2;        // 检定值加值·器械 +2
+  character.attributes.checkBonus[0][0] = 1;        // 检定值加值·内在 +1
+  character.attributes.checkBonus[0][5] = 3;        // 检定值加值·其它 +3 -> 检定值 12
   const at = el('div'); at.appendChild(renderFullAttrTable());
   const atr = at.querySelectorAll('tr');
   const strRow = atr.find((tr)=>tr.querySelector('.row-label') && tr.querySelector('.row-label')._text === '力量');
   const strCells = strRow ? strRow.querySelectorAll('td').map((td)=>td._text) : [];
   ok('表格力量列: 属性值/传奇/检定值 拆分', !strRow || (strCells[1]==='6' && strCells[2]==='1' && strCells[strCells.length-1]==='12'), strCells);
-  ok('表格力量列共12列', !strRow || strCells.length === 12, strCells.length);
-  ok('力量重置', (character.attributes.strength.base=2, character.attributes.strength.gear=0, character.attributes.strength.inner2=0, character.attributes.strength.other2=0, true));
+  ok('表格力量列共13列', !strRow || strCells.length === 13, strCells.length);
+  ok('力量重置', (character.attributes.base[0]=2, character.attributes.checkBonus[0][2]=0, character.attributes.checkBonus[0][0]=0, character.attributes.checkBonus[0][5]=0, true));
 
   // 敏感范围：仿派生值框（总计+加成 + 灰 tip 隐藏属性）
   const sensBox = boxByTitle('敏感范围');
@@ -176,7 +176,7 @@ const TEST = `
     ok('敏感范围总值=20', t && t._text === '20', t ? t._text : '(none)');
     ok('敏感范围带蓝竖条', sensBox.className.includes('detail-box-accent'), sensBox.className);
     const sensLabels = sensBox.querySelectorAll('.detail-input-label').map((l)=>l._text);
-    ok('敏感范围含加成1..5', JSON.stringify(sensLabels) === JSON.stringify(['加成1','加成2','加成3','加成4','加成5']), sensLabels);
+    ok('敏感范围含加成(7来源，含专长)', JSON.stringify(sensLabels) === JSON.stringify(['专长','内在','修行','器械','完美','士气','其它']), sensLabels);
     const sensTip = sensBox.querySelector('.detail-tip');
     ok('敏感范围tip隐藏感知引用', sensTip && sensTip._text === '= 感知检定×10 + 传奇感知×20', sensTip?sensTip._text:'(no tip)');
   }
@@ -202,7 +202,7 @@ const TEST = `
     ok('白刃攻击总值=2(m0隐藏+m)', atkTotal === '2', atkTotal);
     ok('白刃攻击含右侧附加成功区', !!atkBox.querySelector('.detail-extra-succ'), 'extra-succ');
     const atkLabels = atkBox.querySelectorAll('.detail-input-label').map((l)=>l._text);
-    ok('白刃攻击含附加加值1..5', ['附加加值1','附加加值2','附加加值3','附加加值4','附加加值5'].every((x)=>atkLabels.includes(x)), atkLabels);
+    ok('白刃攻击含附加加值(6来源)', ['(附加)内在','修行','器械','完美','士气','其它'].every((x)=>atkLabels.includes(x)), atkLabels);
     ok('白刃攻击含传奇力量(可见)', atkLabels.includes('传奇力量'), atkLabels);
     ok('白刃攻击tip隐藏属性/技能', atkBox.querySelector('.detail-tip')._text === '力量检定 + 白刃检定 · 伤害上限 2', atkBox.querySelector('.detail-tip')._text);
   }
@@ -217,7 +217,7 @@ const TEST = `
   }
 
   // F1: 修改耐力基础后活刷生命值框；完好默认跟随总值
-  character.attributes.stamina.base = 6; // leg1
+  character.attributes.base[2] = 6; // stamina，leg1
   refreshAttrDetail();
   const hpBox = boxByTitle('生命值点数');
   const hpTotal = hpBox ? hpBox.querySelector('.detail-box-total')._text : '(none)';

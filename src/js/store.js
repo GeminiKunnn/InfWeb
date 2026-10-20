@@ -15,16 +15,30 @@
  * reactive/ref 状态，或作为 Pinia store 的 state 复用。
  */
 
-import { ATTRIBUTES, SKILLS } from './character-config.js';
+import { ATTRIBUTES, SKILLS, ATTRIBUTE_POOL_BONUS_LABELS, ATTRIBUTE_CHECK_BONUS_LABELS, BASE_ATTACK_PRESETS } from './character-config.js';
 
 const STORAGE_KEY = 'infrole.character.v1';
 
 function emptyCharacter() {
-  const attrs = {};
-  ATTRIBUTES.forEach((a) => {
-    // 每个属性两档：属性值(基础+内在+修行) / 检定值(属性值+内在2+器械+完美+其它+其它2)
-    attrs[a.id] = { base: a.default, inner: 0, practice: 0, inner2: 0, gear: 0, perfect: 0, other: 0, other2: 0 };
-  });
+  // 属性：全部按 ATTRIBUTES 顺序存数组。
+  //   base        [9]  属性值基础（建卡点）
+  //   poolBonus   [9][n] 属性值加值（n = 属性值加值来源数：内在/修行）
+  //   checkBonus  [9][m] 检定值加值（m = 检定值加值来源数：内在/修行/器械/完美/士气/其它）
+  //   penalty / checkPenalty     [9]  属性减值 / 检定减值
+  const N = ATTRIBUTES.length;
+  const poolBonus = [];
+  const checkBonus = [];
+  for (let i = 0; i < N; i++) {
+    poolBonus.push(ATTRIBUTE_POOL_BONUS_LABELS.map(() => 0));
+    checkBonus.push(ATTRIBUTE_CHECK_BONUS_LABELS.map(() => 0));
+  }
+  const attrs = {
+    base: ATTRIBUTES.map((a) => a.default),
+    poolBonus,
+    checkBonus,
+    penalty: new Array(N).fill(0),
+    checkPenalty: new Array(N).fill(0),
+  };
 
   const skills = {};
   SKILLS.forEach((s) => {
@@ -50,11 +64,12 @@ function emptyCharacter() {
     skills: skills,
     // —— 可动态增删行的列表（在角色卡内用「表单切换」切换）——
     spells: [], // 法术列表 & 法术预设
-    spellBaseBonuses: [0, 0, 0, 0, 0, 0], // 施法基础检定栏的 6 个加成位
+    spellBaseBonuses: [0, 0, 0, 0, 0, 0, 0], // 施法基础检定栏的 7 个加成位（专长/内在/修行/器械/完美/士气/其它）
     specialAttacks: [], // 特殊攻击预设
     energyPools: [], // 能量池
     perks: [], // 专长列表
     equipment: [], // 装备位（特性已独立到 traits）
+    ownedResources: [], // 已拥有资源（拥有凭证：{ resourceId, level, qty, option, instanceId, specialAttackId }）
     traits: [], // 特性列表（来源 / 描述）
     resources: {
       purchases: [], // 资源消耗统计（价格 / 内容）
@@ -67,61 +82,85 @@ function emptyCharacter() {
     otherInfo: { range: '', sensitive: '' }, // 范围 / 敏感范围
     defense: {
       armor: { innate: 0, base: 0, armor: 0, block: 0, insight: 0, other: 0 }, // 护甲各来源
-      armorBonus: [0, 0, 0, 0], // 合计护甲的额外加成
       reduction: [], // 伤害减免列表：{type, amount, source}
     },
     derivedDetail: {
-      // 属性细则各派生项的加成栏（每种 5 个加成来源：加成1-5）
-      movement: { feat: 0, bonus: [0, 0, 0, 0, 0] },
-      initiative: { feat: 0, bonus: [0, 0, 0, 0, 0] },
-      willpower: { feat: 0, bonus: [0, 0, 0, 0, 0] },
-      health: { feat: 0, bonus: [0, 0, 0, 0, 0] },
-      saves: { special: [0, 0, 0], feat: [0, 0, 0], bonus: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, // 反射/意志/强韧：专业×3 + 专长×3 + 加成1-5 + 附加加值1-5（各10位，共30）
-      sensitive: { bonus: [0, 0, 0, 0, 0] }, // 敏感范围：加成1-5
+      // 属性细则各派生项的加成栏：唯一 bonus[7]（index0=专长，1-6=内在/修行/器械/完美/士气/其它），不再有独立 feat 字段
+      movement: { bonus: [0, 0, 0, 0, 0, 0, 0] },
+      initiative: { bonus: [0, 0, 0, 0, 0, 0, 0] },
+      willpower: { bonus: [0, 0, 0, 0, 0, 0, 0] },
+      health: { bonus: [0, 0, 0, 0, 0, 0, 0] },
+      saves: {
+        special: [0, 0, 0], // 豁免1-3 的专业
+        feat: [0, 0, 0], // 豁免1-3 的专长
+        // 豁免1-3 的加值：每豁免一项 12 位数组 = 加成1-6(内在/修行/器械/完美/士气/其它) + 附加加值1-6
+        bonus: [
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 反射豁免
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 意志豁免
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 强韧豁免
+        ],
+      },
+      sensitive: { bonus: [0, 0, 0, 0, 0, 0, 0] }, // 敏感范围：专长/内在/修行/器械/完美/士气/其它（7）
     },
-    baseAttacks: [
-      { id: 'whiteblade', label: '白刃攻击', attr: 'strength', skill: 'weaponry', weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
-      { id: 'brawl', label: '肉搏攻击', attr: 'strength', skill: 'brawl', weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
-      { id: 'semi', label: '半自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoDamage: 0, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
-      { id: 'full', label: '全自动枪械攻击', attr: 'dexterity', skill: 'firearms', ammoCount: 1, weaponDamage: 0, ammoDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
-      { id: 'bow', label: '弓箭攻击', attr: 'dexterity', skill: 'athletics', ammoDamage: 0, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0] },
-    ],
+    baseAttacks: BASE_ATTACK_PRESETS.map((p) => {
+      // 仅存用户可变数据；静态预设（label/attr/skill、弹药输入规则）见 BASE_ATTACK_PRESETS，按 id 关联。
+      // 弹药伤害/弹药数为可选可变输入：仅预设声明 ammoDamage/ammoCount 的攻击带这两个字段。
+      const d = { id: p.id, weaponDamage: 0, specialty: 0, bonuses: [0, 0, 0, 0, 0, 0, 0], other: 0, effect: '', extraSuccessBonus: [0, 0, 0, 0, 0, 0] };
+      if (p.ammoDamage) d.ammoDamage = 0;
+      if (p.ammoCount) d.ammoCount = 1;
+      return d;
+    }),
     // —— 预留 ——
     derived: {}, // 未来：生命值 / 意志 / 先攻 / 移动力 / 豁免等
   };
 }
 
 /** 可动态增删行的「新行」默认结构。 */
+// 内部稳定 id 生成：优先 crypto.randomUUID()，否则退化为随机 hex（无 crypto 的测试/harness 下可用）。
+function newUid(prefix) {
+  const c = typeof crypto !== 'undefined' ? crypto : null;
+  const raw = (c && typeof c.randomUUID === 'function')
+    ? c.randomUUID()
+    : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 10)}`;
+  return `${prefix}_${raw}`;
+}
+
 function newSpell() {
   return {
+    id: newUid('spell'),
     name: '法术',
     potency: 0, // 法术威力
     cost: 0, // 耗能
     specialty: 0, // 专业
-    bonuses: [0, 0, 0, 0, 0, 0], // 检定加成 1..6
-    dmgBonuses: [0, 0, 0], // 伤害上限加成列表（额外）
+    bonuses: [0, 0, 0, 0, 0, 0, 0], // 检定加成（专长/内在/修行/器械/完美/士气/其它，n 侧）
+    extraSuccessBonus: [0, 0, 0, 0, 0, 0], // 附加加值 1..6（m 侧，(附加)内在/修行/…）
     effect: '',
   };
 }
 function newAttack() {
   return {
+    id: newUid('special'),
     name: '攻击',
     note: '',
     attr: 'strength',
     skill: 'brawl',
     weaponDamage: 0,
     specialty: 0,
-    bonuses: [0, 0, 0, 0, 0],
+    bonuses: [0, 0, 0, 0, 0, 0, 0], // 检定加成（专长/内在/修行/器械/完美/士气/其它，n 侧）
+    extraSuccessBonus: [0, 0, 0, 0, 0, 0], // 附加加值 1..6（m 侧，(附加)内在/修行/…）
   };
 }
 function newEnergyPool() {
-  return { name: '能量池', attr1: 'intelligence', attr2: '', bonuses: [0, 0, 0, 0, 0], recovery: '' };
+  return { id: newUid('pool'), name: '能量池', attr1: 'intelligence', attr2: '', bonuses: feat7(), recovery: '' };
+}
+function newOwnedResource() {
+  return { resourceId: '', instanceId: newUid('res'), qty: 1, level: 1, option: '', specialAttackId: '' };
 }
 function newPerk() {
   return { tier: 1, name: '', info: '' };
 }
 function newEquipment() {
-  return { slot: '其它', name: '', effect: '' };
+  return { slot: '其它', name: '', effect: '', resourceId: '', instanceId: '' };
 }
 function newTrait() {
   return { source: '', desc: '' };
@@ -136,6 +175,95 @@ function newReduction() {
   return { type: '物理', amount: 0, source: '' };
 }
 
+// 把任意加值数组归一化为长度 6、全数值；缺则补默认 0。用于 spells/specialAttacks 的标记.
+function normArr6(arr) {
+  let out = (arr || []).slice();
+  while (out.length < 6) out.push(0);
+  return out.slice(0, 6).map((b) => Number(b) || 0);
+}
+
+// 7 位加成槽（专长/内在/修行/器械/完美/士气/其它）：专长为 index0，原 0-5 顺延为 1-6。
+function feat7() {
+  return [0, 0, 0, 0, 0, 0, 0];
+}
+/**
+ * 7 位 n 侧加成槽：[专长, 内在, 修行, 器械, 完美, 士气, 其它]
+ * - 旧 6 位：前补 feat=0
+ * - 已是 7 位：原样保留（幂等）
+ * - 其它长度：补/截到 7
+ */
+function normFeat7(arr) {
+  if (!Array.isArray(arr)) return [0, 0, 0, 0, 0, 0, 0];
+
+  const values = arr.slice(0, 7).map((value) => Number(value) || 0);
+  if (arr.length === 6) return [0, ...values];
+
+  while (values.length < 7) values.push(0);
+  return values;
+}
+
+/**
+ * 派生值(movement/initiative/willpower/health)：旧 { feat, bonus[6] } 迁移为 { bonus[7] }。
+ * - 旧 feat 并入 index0（专长）；bonus[6] 落到 1..6。
+ * - 已是新结构 infinite/7 位：原样保留（幂等）。
+ */
+function normalizeDerivedItem(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const feat = Number(source.feat) || 0;
+  const bonus = Array.isArray(source.bonus) ? source.bonus : [];
+
+  if (bonus.length === 7) {
+    return { bonus: bonus.map((value) => Number(value) || 0) };
+  }
+  if (bonus.length === 6) {
+    return { bonus: [feat, ...bonus.map((value) => Number(value) || 0)] };
+  }
+
+  const out = bonus.slice(0, 7).map((value) => Number(value) || 0);
+  while (out.length < 7) out.push(0);
+  if (feat) out[0] = feat;
+  return { bonus: out };
+}
+
+// 属性子对象规范化：兼容「新数组结构」与「旧 per-属性对象」两种存储，统一为数组结构。
+function normalizeAttributes(rawAttr, emptyAttr) {
+  const N = ATTRIBUTES.length;
+  const out = {
+    base: new Array(N).fill(ATTRIBUTES[0] ? ATTRIBUTES[0].default : 2),
+    poolBonus: emptyAttr.poolBonus.map((r) => r.slice()),
+    checkBonus: emptyAttr.checkBonus.map((r) => r.slice()),
+    penalty: new Array(N).fill(0),
+    checkPenalty: new Array(N).fill(0),
+  };
+  const forEachAttr = ATTRIBUTES.forEach.bind(ATTRIBUTES);
+  if (Array.isArray(rawAttr.base)) {
+    // —— 新数组结构 ——
+    forEachAttr((a, i) => { out.base[i] = Number(rawAttr.base[i]) || 0; });
+    if (Array.isArray(rawAttr.poolBonus)) forEachAttr((a, i) => { (rawAttr.poolBonus[i] || []).forEach((v, j) => { if (out.poolBonus[i][j] != null) out.poolBonus[i][j] = Number(v) || 0; }); });
+    if (Array.isArray(rawAttr.checkBonus)) forEachAttr((a, i) => { (rawAttr.checkBonus[i] || []).forEach((v, j) => { if (out.checkBonus[i][j] != null) out.checkBonus[i][j] = Number(v) || 0; }); });
+    if (Array.isArray(rawAttr.penalty)) forEachAttr((a, i) => { out.penalty[i] = Number(rawAttr.penalty[i]) || 0; });
+    if (Array.isArray(rawAttr.checkPenalty)) forEachAttr((a, i) => { out.checkPenalty[i] = Number(rawAttr.checkPenalty[i]) || 0; });
+  } else {
+    // —— 旧结构：attributes = { strength: {base,inner,practice,inner2,practice2,gear,perfect,morale,other}, ... } ——
+    forEachAttr((a) => {
+      const old = rawAttr[a.id];
+      if (old && typeof old === 'object') {
+        const i = ATTRIBUTES.indexOf(a);
+        out.base[i] = Number(old.base) || 0;
+        if (out.poolBonus[i][0] != null && old.inner != null) out.poolBonus[i][0] = Number(old.inner) || 0;
+        if (out.poolBonus[i][1] != null && old.practice != null) out.poolBonus[i][1] = Number(old.practice) || 0;
+        if (out.checkBonus[i][0] != null && old.inner2 != null) out.checkBonus[i][0] = Number(old.inner2) || 0;
+        if (out.checkBonus[i][1] != null && old.practice2 != null) out.checkBonus[i][1] = Number(old.practice2) || 0;
+        if (out.checkBonus[i][2] != null && old.gear != null) out.checkBonus[i][2] = Number(old.gear) || 0;
+        if (out.checkBonus[i][3] != null && old.perfect != null) out.checkBonus[i][3] = Number(old.perfect) || 0;
+        if (out.checkBonus[i][4] != null && old.morale != null) out.checkBonus[i][4] = Number(old.morale) || 0;
+        if (out.checkBonus[i][5] != null && old.other != null) out.checkBonus[i][5] = Number(old.other) || 0;
+      }
+    });
+  }
+  return out;
+}
+
 // 简单的深合并：用外来的已保存数据覆盖默认空角色。
 function normalize(raw) {
   const empty = emptyCharacter();
@@ -144,36 +272,53 @@ function normalize(raw) {
   const merged = { ...empty, ...raw };
   if (raw.concepts) merged.concepts = { ...empty.concepts, ...raw.concepts };
   if (raw.attributes) {
-    merged.attributes = { ...empty.attributes };
-    ATTRIBUTES.forEach((a) => {
-      if (raw.attributes[a.id] && typeof raw.attributes[a.id] === 'object') {
-        merged.attributes[a.id] = { ...empty.attributes[a.id], ...raw.attributes[a.id] };
-      }
-    });
+    merged.attributes = normalizeAttributes(raw.attributes, empty.attributes);
+    // 属性减值 / 检定减值：新结构在 attributes 内；旧档在 derivedDetail.attrPenalty，此处一并迁移
+    const oldP = raw.derivedDetail && raw.derivedDetail.attrPenalty;
+    if (oldP && Array.isArray(oldP.attr)) ATTRIBUTES.forEach((a, i) => { if (merged.attributes.penalty[i] === 0) merged.attributes.penalty[i] = Number(oldP.attr[i]) || 0; });
+    if (oldP && Array.isArray(oldP.check)) ATTRIBUTES.forEach((a, i) => { if (merged.attributes.checkPenalty[i] === 0) merged.attributes.checkPenalty[i] = Number(oldP.check[i]) || 0; });
+  } else {
+    merged.attributes = empty.attributes;
   }
   if (raw.skills) merged.skills = { ...empty.skills, ...raw.skills };
   if (!Array.isArray(merged.spells)) merged.spells = [];
-  if (!Array.isArray(merged.spellBaseBonuses)) merged.spellBaseBonuses = [0, 0, 0, 0, 0, 0];
+  if (!Array.isArray(merged.spellBaseBonuses)) merged.spellBaseBonuses = feat7();
+  merged.spellBaseBonuses = normFeat7(merged.spellBaseBonuses);
+  merged.spells = merged.spells.map((s) => {
+    const n = s && typeof s === 'object' ? { ...s } : newSpell();
+    if (!n.id) n.id = newUid('spell'); // 稳定 id：缺失才生成
+    n.bonuses = normFeat7(n.bonuses); // 专长/内在/修行/器械/完美/士气/其它
+    // 旧档 dmgBonuses（伤害上限加成栏）已废弃：不再读取、不再提交
+    delete n.dmgBonuses;
+    n.extraSuccessBonus = normArr6(n.extraSuccessBonus); // m 侧附加加值1..6
+    return n;
+  });
   if (!Array.isArray(merged.specialAttacks)) merged.specialAttacks = [];
   if (!Array.isArray(merged.energyPools)) merged.energyPools = [];
-  // 特殊攻击 / 能量池的加成补到 5 个（加成1-5）
+  // 特殊攻击 / 能量池的加成补足（n 侧含专长）
   merged.specialAttacks = merged.specialAttacks.map((a) => {
     const n = a && typeof a === 'object' ? { ...a } : newAttack();
-    n.bonuses = (n.bonuses || []).slice();
-    while (n.bonuses.length < 5) n.bonuses.push(0);
-    n.bonuses = n.bonuses.slice(0, 5).map((b) => Number(b) || 0);
+    if (!n.id) n.id = newUid('special');
+    n.bonuses = normFeat7(n.bonuses);
+    n.extraSuccessBonus = normArr6(n.extraSuccessBonus); // m 侧附加加值1..6
     return n;
   });
   merged.energyPools = merged.energyPools.map((p) => {
     const n = p && typeof p === 'object' ? { ...p } : newEnergyPool();
-    n.bonuses = (n.bonuses || []).slice();
-    while (n.bonuses.length < 5) n.bonuses.push(0);
-    n.bonuses = n.bonuses.slice(0, 5).map((b) => Number(b) || 0);
+    if (!n.id) n.id = newUid('pool');
+    n.bonuses = normFeat7(n.bonuses);
     return n;
   });
   if (!Array.isArray(merged.perks)) merged.perks = [];
   if (!Array.isArray(merged.equipment)) merged.equipment = [];
   if (!Array.isArray(merged.traits)) merged.traits = [];
+  // 已拥有资源：默认 []; 每行确保 instanceId 存在，其余字段(level/qty/option/resourceId/specialAttackId)原样保留
+  if (!Array.isArray(merged.ownedResources)) merged.ownedResources = [];
+  merged.ownedResources = merged.ownedResources.map((r) => {
+    const n = r && typeof r === 'object' ? { ...r } : newOwnedResource();
+    if (!n.instanceId) n.instanceId = newUid('res');
+    return n;
+  });
   if (!merged.resources || typeof merged.resources !== 'object') merged.resources = empty.resources;
   if (!Array.isArray(merged.resources.purchases)) merged.resources.purchases = [];
   if (!Array.isArray(merged.resources.records)) merged.resources.records = [];
@@ -183,7 +328,12 @@ function normalize(raw) {
   if (!merged.otherInfo || typeof merged.otherInfo !== 'object') merged.otherInfo = empty.otherInfo;
   if (!merged.defense || typeof merged.defense !== 'object') merged.defense = empty.defense;
   if (!merged.defense.armor) merged.defense.armor = empty.defense.armor;
-  if (!Array.isArray(merged.defense.armorBonus)) merged.defense.armorBonus = [0, 0, 0, 0];
+  // 旧 armorBonus（护甲额外加成）已废除：累加到 armor.other 后删除
+  if (merged.defense.armorBonus != null) {
+    merged.defense.armor.other = (Number(merged.defense.armor.other) || 0) + (Number(merged.defense.armorBonus) || 0);
+    delete merged.defense.armorBonus;
+  }
+  delete merged.defense.armorBonus; // 保险：确保字段不残留
   if (!Array.isArray(merged.defense.reduction) || merged.defense.reduction.length < 2) {
     merged.defense.reduction = [
       { type: '物理', amount: 0, source: '' },
@@ -196,41 +346,51 @@ function normalize(raw) {
   }
   if (!merged.derivedDetail || typeof merged.derivedDetail !== 'object') merged.derivedDetail = empty.derivedDetail;
   if (!Array.isArray(merged.baseAttacks)) merged.baseAttacks = empty.baseAttacks;
-  // 派生细则每种加成栏补齐到 5 个「加成1-5」
+  // 派生细则四种（move/init/will/health）：统一为 { bonus[7] }（index0=专长），迁移旧 {feat, bonus[6]}
   ['movement', 'initiative', 'willpower', 'health'].forEach((k) => {
-    if (!merged.derivedDetail[k] || typeof merged.derivedDetail[k] !== 'object') merged.derivedDetail[k] = empty.derivedDetail[k];
-    while ((merged.derivedDetail[k].bonus || []).length < 5) merged.derivedDetail[k].bonus.push(0);
+    merged.derivedDetail[k] = normalizeDerivedItem(merged.derivedDetail[k]);
   });
   if (!merged.derivedDetail.saves || typeof merged.derivedDetail.saves !== 'object') merged.derivedDetail.saves = empty.derivedDetail.saves;
   if (!Array.isArray(merged.derivedDetail.saves.special)) merged.derivedDetail.saves.special = [0, 0, 0];
   if (!Array.isArray(merged.derivedDetail.saves.feat)) merged.derivedDetail.saves.feat = [0, 0, 0];
-  // 豁免加成：每个豁免 10 个加成位（加成1-5 + 附加加值1-5）→ 共 30 位。
-  // save i 用 bonus[i*10 .. i*10+9]。旧数据为 6 位/豁免（加成1-3→前3，附加加值1-3→后3），此处做迁移。
+  // 豁免加成：二维结构 bonus[i]（i=0..2 对应 反射/意志/强韧），每豁免 12 位 =
+  //   加成1-6(下标 0..5) + 附加加值1-6(下标 6..11)。
+  // 兼容旧数据（一维扁平）：每豁免 12 位(36) / 旧 10 位(30，下标0..4加成+5..9附加) / 更早 6 位(18)。
   {
-    const raw = Array.isArray(merged.derivedDetail.saves.bonus) ? merged.derivedDetail.saves.bonus : [];
-    const out = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const raw = merged.derivedDetail.saves.bonus;
+    const is2D = Array.isArray(raw) && Array.isArray(raw[0]);
+    const flat = is2D ? null : (Array.isArray(raw) ? raw : []);
+    const n = flat ? flat.length : 0;
+    const read = (i, k) => {
+      if (is2D) return Number(raw[i] && raw[i][k]) || 0;
+      if (n >= 36) return Number(flat[i * 12 + k]) || 0;
+      if (n >= 30) {
+        if (k < 5) return Number(flat[i * 10 + k]) || 0; // 加成1-5 → 新下标0..4
+        return Number(flat[i * 10 + (k - 6) + 5]) || 0; // 附加1-5 → 新下标6..11
+      }
+      if (k < 3) return Number(flat[i * 6 + k]) || 0; // 加成1-3 → 新下标0..2
+      return Number(flat[i * 6 + (k - 6) + 3]) || 0; // 附加1-3 → 新下标6..8
+    };
+    const out = [];
     for (let i = 0; i < 3; i++) {
-      // 旧(6位)取 加成1-3 → 新 0..2；附加加值1-3 → 新 5..7
-      const oldBase = i * 6;      // 旧槽位
-      const newBase = i * 10;     // 新槽位
-      for (let k = 0; k < 3; k++) { out[newBase + k] = Number(raw[oldBase + k]) || 0; }
-      for (let k = 0; k < 3; k++) { out[newBase + 5 + k] = Number(raw[oldBase + 3 + k]) || 0; }
+      const row = [];
+      for (let k = 0; k < 12; k++) row.push(read(i, k));
+      out.push(row);
     }
-    merged.derivedDetail.saves.bonus = out.map((b) => Number(b) || 0);
+    merged.derivedDetail.saves.bonus = out;
   }
-  // 敏感范围加成：补到 5 个
+  // 敏感范围加成：补到 6 个
   if (!merged.derivedDetail.sensitive || typeof merged.derivedDetail.sensitive !== 'object') merged.derivedDetail.sensitive = empty.derivedDetail.sensitive;
   if (!Array.isArray(merged.derivedDetail.sensitive.bonus)) merged.derivedDetail.sensitive.bonus = [];
-  while (merged.derivedDetail.sensitive.bonus.length < 5) merged.derivedDetail.sensitive.bonus.push(0);
-  merged.derivedDetail.sensitive.bonus = merged.derivedDetail.sensitive.bonus.slice(0, 5).map((b) => Number(b) || 0);
-  // 基础攻击加成补到 5 + 其他 + 附加成功加成(5)
+  merged.derivedDetail.sensitive.bonus = normFeat7(merged.derivedDetail.sensitive.bonus);
+  // 基础攻击加成补足（7：专长/内在/修行/器械/完美/士气/其它）+ 其他 + 附加成功加成(6)
   merged.baseAttacks = merged.baseAttacks.map((a) => {
-    const clean = a && typeof a === 'object' ? { ...a } : { id: 'x', label: '攻击', attr: 'strength', skill: 'brawl', specialty: 0, bonuses: [0, 0, 0, 0, 0], other: 0, effect: '' };
-    while ((clean.bonuses || []).length < 5) clean.bonuses.push(0);
+    const clean = a && typeof a === 'object' ? { ...a } : { id: 'x', label: '攻击', attr: 'strength', skill: 'brawl', specialty: 0, bonuses: feat7(), other: 0, effect: '' };
+    clean.bonuses = normFeat7(clean.bonuses);
     if (clean.other == null) clean.other = 0;
     if (!Array.isArray(clean.extraSuccessBonus)) clean.extraSuccessBonus = [];
-    while (clean.extraSuccessBonus.length < 5) clean.extraSuccessBonus.push(0);
-    clean.extraSuccessBonus = clean.extraSuccessBonus.slice(0, 5).map((b) => Number(b) || 0);
+    while (clean.extraSuccessBonus.length < 6) clean.extraSuccessBonus.push(0);
+    clean.extraSuccessBonus = clean.extraSuccessBonus.slice(0, 6).map((b) => Number(b) || 0);
     return clean;
   });
   return merged;
@@ -278,4 +438,4 @@ function loadFromStorage() {
   }
 }
 
-export { emptyCharacter, normalize, newSpell, newAttack, newEnergyPool, newPerk, newEquipment, newTrait, newPurchase, newRecord, newReduction, api, STORAGE_KEY };
+export { emptyCharacter, normalize, newSpell, newAttack, newEnergyPool, newOwnedResource, newPerk, newEquipment, newTrait, newPurchase, newRecord, newReduction, api, STORAGE_KEY };

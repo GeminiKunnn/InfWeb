@@ -3,7 +3,7 @@ import { onMounted, onBeforeUnmount, ref } from 'vue';
 import { SHEETS, renderSheetBody, togglePerkBox } from '../js/character.js';
 import {
   newSpell, newAttack, newEnergyPool, newPerk, newEquipment,
-  newTrait, newPurchase, newRecord, newReduction, api,
+  newTrait, newPurchase, newRecord, newReduction, newOwnedResource, api,
 } from '../js/store.js';
 import { character, appState, sheetState } from '../js/state.js';
 import { useApp } from '../composables/useApp';
@@ -62,20 +62,23 @@ function onDocClick(e) {
   else if (act === 'add-purchase') { character.resources.purchases.push(newPurchase()); reloadBody(); }
   else if (act === 'add-record') { character.resources.records.push(newRecord()); reloadBody(); }
   else if (act === 'add-reduction') { character.defense.reduction.push(newReduction()); reloadBody(); }
+  else if (act === 'add-owned') { character.ownedResources.push(newOwnedResource()); reloadBody(); }
   else if (act === 'remove-reduction') { character.defense.reduction.splice(Number(btn.dataset.index), 1); reloadBody(); }
   else if (act === 'toggle-perk-box') togglePerkBox(btn);
-  else if (act === 'del-row') deleteRow(btn.dataset.kind, Number(btn.dataset.index));
+  else if (act === 'del-row') deleteRow(btn.dataset.kind, Number(btn.dataset.index), btn.dataset.rowid);
 }
 
-function deleteRow(kind, index) {
-  if (kind === 'spell') character.spells.splice(index, 1);
-  else if (kind === 'attack') character.specialAttacks.splice(index, 1);
-  else if (kind === 'energy') character.energyPools.splice(index, 1);
+function deleteRow(kind, index, rowId) {
+  const byId = (arr) => (typeof rowId === 'string' && rowId ? arr.findIndex((x) => x.id === rowId) : index);
+  if (kind === 'spell') character.spells.splice(byId(character.spells), 1);
+  else if (kind === 'attack') character.specialAttacks.splice(byId(character.specialAttacks), 1);
+  else if (kind === 'energy') character.energyPools.splice(byId(character.energyPools), 1);
   else if (kind === 'perk') character.perks.splice(index, 1);
   else if (kind === 'equip') character.equipment.splice(index, 1);
   else if (kind === 'trait') character.traits.splice(index, 1);
   else if (kind === 'purchase') character.resources.purchases.splice(index, 1);
   else if (kind === 'record') character.resources.records.splice(index, 1);
+  else if (kind === 'owned') character.ownedResources.splice(index, 1);
   reloadBody();
 }
 
