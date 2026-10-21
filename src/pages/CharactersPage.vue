@@ -24,24 +24,28 @@ function openImport() {
     <p class="subtitle">选择要打开的角色卡，或新建一个角色</p>
   </header>
 
-  <div class="char-list">
-    <button v-for="c in chars" :key="c.id" type="button" class="char-row" @click="openRow(c.id)">
-      <span class="char-name">{{ c.name }}</span>
-      <div class="char-meta">
-        <span class="char-kv">
-          <em class="char-kv-label">总资源</em>
-          <span class="char-resource">{{ c.resource }}</span>
-        </span>
-        <span class="char-kv">
-          <em class="char-kv-label">生命值</em>
-          <span class="char-hp">{{ c.hp }}</span>
-        </span>
-        <span class="char-kv">
-          <em class="char-kv-label">归属房间</em>
-          <span class="char-room">{{ c.room }}</span>
-        </span>
+  <div class="char-grid">
+    <button v-for="c in chars" :key="c.id" type="button" class="char-card" @click="openRow(c.id)">
+      <span class="char-avatar">{{ c.name.slice(-1) }}</span>
+      <span class="char-card-name">{{ c.name }}</span>
+      <span class="char-card-desc">角色卡</span>
+
+      <div class="char-card-stats">
+        <div class="char-card-stat">
+          <span class="char-card-k">总资源</span>
+          <span class="char-card-v">{{ c.resource }}</span>
+        </div>
+        <div class="char-card-stat">
+          <span class="char-card-k">生命值</span>
+          <span class="char-card-v">{{ c.hp }}</span>
+        </div>
+        <div class="char-card-stat">
+          <span class="char-card-k">归属房间</span>
+          <span class="char-card-v">{{ c.room }}</span>
+        </div>
       </div>
-      <span class="char-open">点击查看</span>
+
+      <span class="char-open">点击查看 →</span>
     </button>
   </div>
   <div class="char-empty-note">（以上为占位数据仅作展示）</div>

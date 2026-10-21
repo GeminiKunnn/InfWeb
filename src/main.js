@@ -4,6 +4,10 @@ import './css/style.css';
 import { api } from './js/store.js';
 import { setCharacter } from './js/state.js';
 import { useApp } from './composables/useApp';
+import { useTheme } from './composables/useTheme';
+
+// 尽早应用主题（在挂载前写 <html data-theme>，避免首屏闪烁）。
+useTheme().initTheme();
 
 // 异步启动：镜像原 app.js boot() 的数据准备（读取已保存角色 + 恢复上次页面）。
 async function bootstrap() {

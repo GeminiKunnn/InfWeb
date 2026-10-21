@@ -51,19 +51,22 @@ onMounted(load);
     <template v-else>
       <!-- 倒序遍历：最新在上 -->
       <div v-for="(e, idx) in [...entries].reverse()" :key="'c' + idx" class="changelog-item">
-        <div class="changelog-head">
-          <span class="changelog-title">{{ e.title || '' }}</span>
-          <span class="changelog-date">{{ dateText(e.date) }}</span>
-        </div>
-        <div class="changelog-content">
-          <p
-            v-for="(seg, si) in schemaify(e.content)"
-            v-show="String(seg).trim() !== ''"
-            :key="'s' + si"
-            class="changelog-paragraph"
-          >
-            {{ String(seg).trim() }}
-          </p>
+        <span class="changelog-dot" aria-hidden="true"></span>
+        <div class="changelog-main">
+          <div class="changelog-head">
+            <span class="changelog-title">{{ e.title || '' }}</span>
+            <span class="changelog-date">{{ dateText(e.date) }}</span>
+          </div>
+          <div class="changelog-content">
+            <p
+              v-for="(seg, si) in schemaify(e.content)"
+              v-show="String(seg).trim() !== ''"
+              :key="'s' + si"
+              class="changelog-paragraph"
+            >
+              {{ String(seg).trim() }}
+            </p>
+          </div>
         </div>
       </div>
     </template>

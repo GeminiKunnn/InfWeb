@@ -8,6 +8,7 @@ defineProps({
 
 <template>
   <div class="blank-page">
+    <div class="blank-icon" aria-hidden="true">✦</div>
     <h2>{{ title }}</h2>
     <p class="muted">{{ note }}</p>
   </div>

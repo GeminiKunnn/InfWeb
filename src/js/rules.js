@@ -245,7 +245,6 @@ function attachScrollSpy(tocEls, container) {
     link: a,
     node: document.getElementById(a.dataset.target),
   }));
-  const visible = [];
   const onScroll = () => {
     const containerRect = container.getBoundingClientRect();
     const buffer = 90;
@@ -260,13 +259,19 @@ function attachScrollSpy(tocEls, container) {
     targets.forEach((t) => {
       if (t.node) t.node.classList.toggle('toc-anchor-active', t.id === currentId);
     });
-    void visible;
   };
-  container.addEventListener('scroll', onScroll);
+  // 正文可能随页面滚动（内容区本身不产生 scroll 事件），故同时监听窗口滚动，保证目录随滚动高亮。
+  const prev = container._scrollSpyCleanup;
+  if (typeof prev === 'function') prev();
+  container.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('scroll', onScroll, { passive: true });
   // 首次进入立即计算一次
   requestAnimationFrame(onScroll);
   // 暴露清理函数（页内切换时移除，避免重复绑定）
-  container._scrollSpyCleanup = onScroll;
+  container._scrollSpyCleanup = () => {
+    container.removeEventListener('scroll', onScroll);
+    window.removeEventListener('scroll', onScroll);
+  };
 }
 
 async function loadMd(file) {

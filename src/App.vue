@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useApp } from './composables/useApp';
+import { useTheme } from './composables/useTheme';
 
 import LandingPage from './pages/LandingPage.vue';
 import ChangelogPage from './pages/ChangelogPage.vue';
@@ -11,6 +12,16 @@ import NewCharacterView from './pages/NewCharacterView.vue';
 import EmptyPage from './pages/EmptyPage.vue';
 
 const { state, nav, enterApp, goHome, go, toggleSidebar, toggleUserMenu } = useApp();
+const { state: themeState, toggleTheme } = useTheme();
+
+// 侧边栏导航分组（仅用于展示分组标题，不改变导航逻辑）
+const navGroups = [
+  { label: '内容', pages: ['changelog', 'rules', 'resources'] },
+  { label: '角色', pages: ['characters', 'realm', 'other'] },
+].map((g) => ({ label: g.label, items: g.pages.map((p) => nav.find((n) => n.page === p)).filter(Boolean) }));
+
+const isLight = computed(() => themeState.theme === 'light');
+const themeToggleTitle = computed(() => (isLight.value ? '切换到深色主题' : '切换到浅色主题'));
 
 // 应用内页面 → 组件映射（分批迁移：sheet / new-character 复用原有渲染管线）。
 const pageComponents = {
@@ -57,23 +68,35 @@ const pageProps = computed(() => {
       <!-- 品牌 -->
       <button type="button" class="brand" title="回到首页" @click="goHome">
         <span class="brand-mark">∞</span>
-        <span class="brand-text">无限流</span>
+        <span class="brand-text">
+          <span class="brand-name">无限流</span>
+          <span class="brand-tag">角色卡 · 规则书</span>
+        </span>
       </button>
 
       <!-- 菜单 -->
       <nav class="menu" id="menu">
-        <button
-          v-for="item in nav"
-          :key="item.page"
-          type="button"
-          class="menu-item"
-          :class="{ active: state.page === item.page }"
-          @click="go(item.page)"
-        >
-          <span class="menu-icon">{{ item.icon }}</span>
-          <span class="menu-text">{{ item.text }}</span>
-        </button>
+        <template v-for="group in navGroups" :key="group.label">
+          <span class="nav-group-label">{{ group.label }}</span>
+          <button
+            v-for="item in group.items"
+            :key="item.page"
+            type="button"
+            class="menu-item"
+            :class="{ active: state.page === item.page }"
+            @click="go(item.page)"
+          >
+            <span class="menu-icon">{{ item.icon }}</span>
+            <span class="menu-text">{{ item.text }}</span>
+          </button>
+        </template>
       </nav>
+
+      <!-- 主题切换 -->
+      <button type="button" class="sidebar-theme" :title="themeToggleTitle" @click="toggleTheme">
+        <span class="sidebar-theme-icon">{{ isLight ? '🌙' : '☀️' }}</span>
+        <span class="sidebar-theme-text">{{ isLight ? '深色模式' : '浅色模式' }}</span>
+      </button>
 
       <!-- 用户信息 -->
       <div class="user-box" id="user-box">
