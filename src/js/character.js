@@ -81,8 +81,7 @@ function renderAttrRow(attr) {
   baseTd.appendChild(
     numberInput({
       value: attrBaseOf(attr.id),
-      min: 0,
-      max: attr.max,
+      // 属性页面基础值不做上下限（上下限仅应用于新建角色卡流程）
       onChange: (v) => {
         character.attributes.base[i] = v;
         refreshAttrRow(tr);
@@ -372,10 +371,112 @@ function renderOtherInfo() {
   return wrap;
 }
 
+/* ------------------------- 九维属性雷达图（总览） ------------------------- */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs = {}) {
+  const node = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, String(v)));
+  return node;
+}
+function svgPolygon(points, attrs = {}) {
+  const p = svgEl('polygon', { points: points.map((x) => `${x.x},${x.y}`).join(' '), ...attrs });
+  return p;
+}
+
+// 九维雷达图：九个顶点＝九项属性（按 ATTRIBUTES 顺序），每维值＝该属性的「属性值」（attrPool，原点为 0）。
+function renderAttrRadar() {
+  const width = 340;
+  const height = 340;
+  const cx = width / 2;
+  const cy = height / 2;
+  const R = 108; // 最大刻度圈半径
+
+  const attrs = ATTRIBUTES; // 九项
+  const n = attrs.length;
+  const values = attrs.map((a) => attrPool(a.id));
+
+  // 刻度上限：至少 10，向上取整到 5 的倍数，保证形状随数据自适应且不越界
+  const max = Math.max(10, Math.ceil(Math.max(...values) / 5) * 5);
+
+  // 顶点 k 的角度：从正上方（-90°）顺时针均分
+  const angle = (k) => ((-90 + (360 / n) * k) * Math.PI) / 180;
+  const pt = (angleDeg, radius) => ({
+    x: cx + radius * Math.cos(angleDeg),
+    y: cy + radius * Math.sin(angleDeg),
+  });
+
+  // 数据点坐标
+  const dataPoints = attrs.map((a, k) => pt(angle(k), (attrPool(a.id) / max) * R));
+
+  const svg = svgEl('svg', {
+    class: 'attr-radar',
+    width, height,
+    viewBox: `0 0 ${width} ${height}`,
+  });
+
+  // 基准同心多边形（25% / 50% / 75% / 100%）
+  const levels = [0.25, 0.5, 0.75, 1];
+  levels.forEach((lv) => {
+    const ring = [];
+    for (let k = 0; k < n; k++) ring.push(pt(angle(k), R * lv));
+    svg.appendChild(svgPolygon(ring, { class: 'attr-radar-grid' }));
+  });
+
+  // 径向轴线
+  for (let k = 0; k < n; k++) {
+    const p = pt(angle(k), R);
+    svg.appendChild(svgEl('line', {
+      class: 'attr-radar-axis',
+      x1: cx, y1: cy, x2: p.x, y2: p.y,
+    }));
+  }
+
+  // 数据多边形（填充 + 描边）
+  svg.appendChild(svgPolygon(dataPoints, { class: 'attr-radar-fill' }));
+  svg.appendChild(svgPolygon(dataPoints, { class: 'attr-radar-line' }));
+
+  // 每个轴顶点：标签 + 数值（标在数据点处），钟表式均匀分布
+  attrs.forEach((a, k) => {
+    const tip = pt(angle(k), R + 26); // 标签落在最大圈外
+    const lbl = svgEl('text', {
+      class: 'attr-radar-label',
+      x: tip.x, y: tip.y,
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle',
+    });
+    lbl.textContent = a.label;
+    svg.appendChild(lbl);
+
+    const vp = dataPoints[k];
+    svg.appendChild(svgEl('circle', {
+      class: 'attr-radar-dot',
+      cx: vp.x, cy: vp.y, r: 3,
+    }));
+    // 数据点数值（标在顶点内侧，靠近数据点）
+    const val = svgEl('text', {
+      class: 'attr-radar-value',
+      x: vp.x, y: vp.y - 6,
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle',
+    });
+    val.textContent = String(attrPool(a.id));
+    svg.appendChild(val);
+  });
+
+  const wrap = el('div', { class: 'attr-radar-wrap' });
+  wrap.appendChild(svg);
+  return wrap;
+}
+
 function renderMainSheet() {
   const wrap = el('div', { class: 'sheet-panel' });
   wrap.appendChild(section('概念段', renderConcepts()));
-  wrap.appendChild(section('属性段', renderAttrOverview()));
+  // 属性段：左=九项属性数值网格，右=九维雷达图，同一行并排
+  const attrCols = el('div', { class: 'attr-cols' });
+  attrCols.appendChild(renderAttrOverview());
+  attrCols.appendChild(renderAttrRadar());
+  wrap.appendChild(section('属性段', attrCols));
   wrap.appendChild(section('技能段', renderSkillOverview()));
   wrap.appendChild(section('生命信息', renderHealthPanel()));
   wrap.appendChild(section('防御信息', renderDefenseInfo())); // 防御信息移至生命信息下方

@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import './css/style.css';
+import './css/realm.css';
 import { api } from './js/store.js';
 import { setCharacter } from './js/state.js';
 import { useApp } from './composables/useApp';

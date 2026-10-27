@@ -130,7 +130,7 @@ const sandbox = {
   console, Math, Number, String, Array, Object, JSON, Date,
   document: {
     readyState: 'loading',
-    createElement: mkEl, createTextNode: () => mkEl(),
+    createElement: mkEl, createElementNS: () => mkEl(), createTextNode: () => mkEl(),
     addEventListener(){}, querySelector(){return null;}, querySelectorAll(){return [];},
     getElementById(){return mkEl();}, body:{appendChild(){}},
   },

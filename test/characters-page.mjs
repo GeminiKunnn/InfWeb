@@ -55,6 +55,7 @@ const sandbox = {
   document: {
     readyState: 'loading',
     createElement: (t) => new FakeEl(t),
+    createElementNS: (_ns, t) => new FakeEl(t),
     createTextNode: () => new FakeEl('#text'),
     addEventListener(){},
     querySelector: () => null,

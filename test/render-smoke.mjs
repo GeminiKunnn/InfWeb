@@ -39,7 +39,7 @@ Object.defineProperty(FakeEl.prototype, 'textContent', {
 Object.defineProperty(FakeEl.prototype, 'className', {
   get() { return this._class; }, set(v) { this._class = String(v); },
 });
-FakeEl.prototype.setAttribute = function (k, v) { this.attrs[k] = v; if (k === 'data-index') this.dataset.index = String(v); };
+FakeEl.prototype.setAttribute = function (k, v) { this.attrs[k] = v; if (k === 'class') { this._class = String(v); } if (k === 'data-index') this.dataset.index = String(v); };
 FakeEl.prototype.addEventListener = function () {};
 FakeEl.prototype.matches = function (sel) {
   const cls = (this._class || '').split(' ').filter(Boolean);
@@ -75,6 +75,7 @@ const sandbox = {
   document: {
     readyState: 'loading',
     createElement: (t) => new FakeEl(t),
+    createElementNS: (_ns, t) => new FakeEl(t),
     createTextNode: () => new FakeEl('#text'),
     addEventListener(){},
     querySelector: (sel) => (sel === '.sheet-body' ? hostEl() : null),
@@ -231,6 +232,22 @@ const TEST = `
   const secTitles = host.querySelectorAll('.section-title').map((x)=>x._text);
   ok('总览有「生命信息」与「防御信息」', secTitles.includes('生命信息') && secTitles.includes('防御信息'), secTitles);
   ok('防御信息紧跟生命信息之后', secTitles.indexOf('防御信息') === secTitles.indexOf('生命信息') + 1, secTitles);
+  // 属性段：左=属性数值网格，右=九维雷达图，同一行并排（.attr-cols 内）
+  const attrCols = host.querySelector('.attr-cols');
+  ok('属性段容器 .attr-cols 存在', !!attrCols, 'attr-cols');
+  if (attrCols) {
+    const kids = attrCols.children;
+    ok('.attr-cols 第一子为属性网格(info-grid)', kids[0] && kids[0]._class.includes('info-grid'), kids[0]?kids[0]._class:'(none)');
+    ok('.attr-cols 第二子为雷达图(attr-radar-wrap)', kids[1] && kids[1]._class.includes('attr-radar-wrap'), kids[1]?kids[1]._class:'(none)');
+  }
+  const radarSvg = host.querySelector('.attr-radar');
+  ok('属性雷达图含 svg.attr-radar', !!radarSvg && radarSvg.tag === 'svg', radarSvg ? radarSvg.tag : '(none)');
+  if (radarSvg) {
+    const dots = radarSvg.querySelectorAll('circle');
+    ok('属性雷达图含 9 个数据顶点', dots.length === 9, 'dots=' + dots.length);
+    ok('属性雷达图含 9 个数值标注', radarSvg.querySelectorAll('.attr-radar-value').length === 9, 'values');
+    ok('属性雷达图含数据多边形(fill+line)', !!radarSvg.querySelector('.attr-radar-fill') && !!radarSvg.querySelector('.attr-radar-line'), 'polygon');
+  }
   const byLab = (t)=>{ const c=host.querySelectorAll('.derived-cell').find((d)=>d.querySelector('.derived-label') && d.querySelector('.derived-label')._text === t); return c ? c.querySelector('.derived-value')._text : '(none)'; };
   const hintOf = (t)=>{ const c=host.querySelectorAll('.derived-cell').find((d)=>d.querySelector('.derived-label') && d.querySelector('.derived-label')._text === t); return c && c.querySelector('.derived-hint') ? c.querySelector('.derived-hint')._text : null; };
   ok('总览力量=2(m0隐藏+m)', byLab('力量') === '2', byLab('力量'));

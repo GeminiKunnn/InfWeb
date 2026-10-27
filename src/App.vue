@@ -9,6 +9,8 @@ import RulesPage from './pages/RulesPage.vue';
 import CharactersPage from './pages/CharactersPage.vue';
 import CharacterSheetView from './pages/CharacterSheetView.vue';
 import NewCharacterView from './pages/NewCharacterView.vue';
+import RealmRooms from './pages/RealmRooms.vue';
+import RealmCombat from './pages/RealmCombat.vue';
 import EmptyPage from './pages/EmptyPage.vue';
 
 const { state, nav, enterApp, goHome, go, toggleSidebar, toggleUserMenu } = useApp();
@@ -23,12 +25,19 @@ const navGroups = [
 const isLight = computed(() => themeState.theme === 'light');
 const themeToggleTitle = computed(() => (isLight.value ? '切换到深色主题' : '切换到浅色主题'));
 
+// 轮回之境：房间列表（普通内容区）+ 战斗界面（整屏宿主）均视为该菜单项激活
+const realmPages = ['realm', 'realm-combat'];
+const isActiveItem = (p) => (p === 'realm' ? realmPages.includes(state.page) : state.page === p);
+// 仅战斗界面使用整屏宿主布局（房间列表保留正常 padding / 滚动）
+const isRealmHost = computed(() => state.page === 'realm-combat');
+
 // 应用内页面 → 组件映射（分批迁移：sheet / new-character 复用原有渲染管线）。
 const pageComponents = {
   changelog: ChangelogPage,
   rules: RulesPage,
   resources: EmptyPage,
-  realm: EmptyPage,
+  realm: RealmRooms,
+  'realm-combat': RealmCombat,
   other: EmptyPage,
   characters: CharactersPage,
   character: CharacterSheetView,
@@ -41,8 +50,6 @@ const pageProps = computed(() => {
   switch (state.page) {
     case 'resources':
       return { title: '资源列表', note: '资源列表页面预留，后续展示后端资源目录（各资源的 bonus 与描述）。' };
-    case 'realm':
-      return { title: '轮回之境', note: '轮回之境页面预留，后续开发：游戏组 / 房间 / 多单位施效等。' };
     case 'other':
       return { title: '其他', note: '预留页面，暂无内容。' };
     default:
@@ -83,7 +90,7 @@ const pageProps = computed(() => {
             :key="item.page"
             type="button"
             class="menu-item"
-            :class="{ active: state.page === item.page }"
+            :class="{ active: isActiveItem(item.page) }"
             @click="go(item.page)"
           >
             <span class="menu-icon">{{ item.icon }}</span>
@@ -115,7 +122,7 @@ const pageProps = computed(() => {
       </div>
     </aside>
 
-    <main class="content" id="content">
+    <main class="content" :class="{ 'realm-host': isRealmHost }" id="content">
       <component :is="currentPage" v-bind="pageProps" />
     </main>
   </div>

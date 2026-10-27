@@ -1,0 +1,662 @@
+/* ============================================================================
+ * realm.css — 轮回之境 · TRPG 战斗界面（纯 UI / 暂不做脚本功能）
+ * ============================================================================
+ * 独立于全局 style.css 的固定暗色战斗主题：
+ *  - 不随项目亮/暗主题切换（战斗保持沉浸式暗色）；
+ *  - 配色变量以 .realm-app 为作用域，避免污染其它页面；
+ *  - 强调色顺应本项目靛蓝 --accent 体系，不用金黄（按需求已忽略金黄）。
+ * 所有类以 realm- / rm- 前缀命名，防止与全局样式冲突。
+ * ============================================================================
+ */
+
+/* ---------- 主题变量（仅作用于战斗界面子树） ---------- */
+.realm-app {
+  --rm-bg: #0b0e12;
+  --rm-bg-deep: #07090c;
+  --rm-panel: #11141a;
+  --rm-panel-2: #171b23;
+  --rm-panel-3: #1e242e;
+  --rm-raise: #222935;
+  --rm-line: #232b37;
+  --rm-line-soft: #1a212b;
+  --rm-ink: #d5dbe4;
+  --rm-ink-soft: #a6afbd;
+  --rm-muted: #6f7a88;
+  --rm-faint: #4d5662;
+
+  --rm-accent: #6f8dff;
+  --rm-accent-bright: #96aeff;
+  --rm-accent-weak: rgba(111, 141, 255, 0.14);
+  --rm-accent-line: rgba(111, 141, 255, 0.55);
+
+  --rm-hp: #3ecb8e;
+  --rm-hp-weak: rgba(62, 203, 142, 0.16);
+  --rm-mp: #5a9dff;
+  --rm-mp-weak: rgba(90, 157, 255, 0.16);
+  --rm-danger: #e5574f;
+  --rm-danger-weak: rgba(229, 87, 79, 0.15);
+  --rm-ok: #7ee2b0;
+
+  --rm-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+  --rm-radius: 12px;
+
+  /* 语义辅助变量（衬底 / 输入 / 标签底色 / 半透明遮罩），浅色主题另行覆盖 */
+  --rm-track: rgba(255, 255, 255, 0.07);
+  --rm-input-bg: rgba(255, 255, 255, 0.05);
+  --rm-chip-bg: rgba(9, 12, 16, 0.72);
+  --rm-overlay: rgba(12, 15, 20, 0.88);
+  --rm-grid-line: rgba(120, 140, 170, 0.10);
+  --rm-vignette: rgba(7, 9, 12, 0.70);
+  --rm-on-accent: #0b0e12;
+  --rm-map-1: #20262f;
+  --rm-map-2: #151a21;
+  --rm-map-3: #0e1218;
+
+  color: var(--rm-ink);
+}
+
+/* 浅色主题：覆盖战斗界面配色，跟随 <html data-theme="light"> */
+html[data-theme='light'] .realm-app {
+  --rm-bg: #eef1f5;
+  --rm-bg-deep: #e6eaf0;
+  --rm-panel: #ffffff;
+  --rm-panel-2: #f4f6f9;
+  --rm-panel-3: #e9edf3;
+  --rm-raise: #dfe4ec;
+  --rm-line: #d6dbe3;
+  --rm-line-soft: #e0e5ec;
+  --rm-ink: #262e3b;
+  --rm-ink-soft: #46505f;
+  --rm-muted: #75808f;
+  --rm-faint: #9aa3af;
+
+  --rm-accent: #4c6be0;
+  --rm-accent-bright: #3a57c9;
+  --rm-accent-weak: rgba(76, 107, 224, 0.13);
+  --rm-accent-line: rgba(76, 107, 224, 0.5);
+
+  --rm-hp: #1e9f66;
+  --rm-hp-weak: rgba(30, 159, 102, 0.14);
+  --rm-mp: #3d7fdb;
+  --rm-mp-weak: rgba(61, 127, 219, 0.14);
+  --rm-danger: #d64841;
+  --rm-danger-weak: rgba(214, 72, 65, 0.13);
+  --rm-ok: #22a06d;
+
+  --rm-shadow: 0 8px 26px rgba(30, 40, 60, 0.16);
+
+  --rm-track: rgba(0, 0, 0, 0.07);
+  --rm-input-bg: rgba(0, 0, 0, 0.04);
+  --rm-chip-bg: rgba(255, 255, 255, 0.85);
+  --rm-overlay: rgba(255, 255, 255, 0.92);
+  --rm-grid-line: rgba(60, 80, 110, 0.14);
+  --rm-vignette: rgba(30, 40, 60, 0.12);
+  --rm-on-accent: #ffffff;
+  --rm-map-1: #e7ebf0;
+  --rm-map-2: #d5dbe3;
+  --rm-map-3: #c4cbd5;
+}
+
+/* ---------- 整体：战斗界面铺满内容区（realm 页时 .content.realm-host 去掉内边距） ---------- */
+.realm-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--rm-bg);
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.realm-app * { box-sizing: border-box; }
+
+/* ---------- 【1】顶部导航栏 ---------- */
+.realm-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 18px;
+  background: linear-gradient(180deg, var(--rm-panel), var(--rm-bg-deep));
+  border-bottom: 1px solid var(--rm-line);
+  z-index: 5;
+}
+/* 左上：房间 / 连接 / 遭遇战描述 */
+.realm-hd-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.realm-room { display: flex; align-items: center; gap: 8px; }
+.realm-room-name { font-size: 14px; font-weight: 700; color: var(--rm-ink); letter-spacing: 0.2px; }
+.realm-room-placeholder { color: var(--rm-faint); font-weight: 500; }
+.realm-status { display: flex; align-items: center; gap: 6px; color: var(--rm-muted); font-size: 11px; }
+.realm-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rm-hp); box-shadow: 0 0 0 3px var(--rm-hp-weak); }
+.realm-encounter { color: var(--rm-ink-soft); font-size: 12px; font-style: italic; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 中：敌方目标标签（横向胶囊） */
+.realm-hd-mid { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.realm-target-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--rm-line);
+  background: var(--rm-panel-2);
+  border-radius: 999px;
+  color: var(--rm-ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.realm-target-pill.active { border-color: var(--rm-accent-line); background: var(--rm-accent-weak); color: var(--rm-accent-bright); }
+.realm-target-pill .rm-hp-chip { font-weight: 700; color: var(--rm-ink); }
+
+/* 右：胶囊操作按钮 */
+.realm-hd-right { display: flex; align-items: center; gap: 8px; }
+.realm-pill {
+  padding: 6px 14px;
+  border: 1px solid var(--rm-line);
+  border-radius: 999px;
+  background: var(--rm-panel-2);
+  color: var(--rm-ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.realm-pill:hover { background: var(--rm-raise); color: var(--rm-ink); }
+.realm-pill.primary { background: var(--rm-accent-weak); border-color: var(--rm-accent-line); color: var(--rm-accent-bright); }
+.realm-pill.danger { color: var(--rm-danger); }
+
+/* ---------- 主区域：舞台列(左+中+底部槽位) | 右侧栏(整高) ---------- */
+.realm-main {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+/* 舞台列：左栏 + 中央 + 底部槽位，纵向堆叠 */
+.realm-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.realm-stage-mid {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+/* ================= 通用块 ================= */
+.realm-pane { background: var(--rm-panel); display: flex; flex-direction: column; min-height: 0; }
+.realm-pane-title {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--rm-muted);
+  padding: 10px 14px;
+}
+.realm-pane-title::after { content: ''; flex: 1; margin-left: 10px; border-top: 1px solid var(--rm-line-soft); }
+
+/* ================= 左侧边栏 ================= */
+.realm-left {
+  flex: 0 0 284px;
+  width: 284px;
+  border-right: 1px solid var(--rm-line);
+  background: var(--rm-panel);
+}
+/* 队伍列表 */
+.realm-party { flex: 1 1 46%; min-height: 0; display: flex; flex-direction: column; }
+.realm-party-list { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.realm-mcard {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--rm-line-soft);
+  border-radius: 10px;
+  background: var(--rm-panel-2);
+  position: relative;
+}
+.realm-mcard.active { border-color: var(--rm-accent-line); background: var(--rm-accent-weak); box-shadow: inset 0 0 0 1px var(--rm-accent-line), 0 4px 14px rgba(111,141,255,.12); }
+.realm-avatar {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--rm-panel-3), var(--rm-faint));
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  color: var(--rm-muted);
+  overflow: hidden;
+}
+.realm-mcard.active .realm-avatar { border: 2px solid var(--rm-accent); color: var(--rm-accent-bright); }
+.realm-mcard-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.realm-mcard-name { font-size: 13px; font-weight: 700; color: var(--rm-ink); display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.realm-mcard-class { font-size: 11px; color: var(--rm-muted); }
+.realm-hpbar, .realm-mpbar { height: 7px; border-radius: 4px; background: var(--rm-track); overflow: hidden; position: relative; }
+.realm-hpbar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--rm-hp), var(--rm-ok)); border-radius: 4px; }
+.realm-mpbar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, var(--rm-mp), #8ec2ff); border-radius: 4px; }
+/* MP 点状显示 */
+.realm-mp-dots { display: flex; gap: 3px; }
+.realm-mp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rm-mp); }
+.realm-mp-dot.off { background: var(--rm-track); }
+.realm-mcard-tag {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--rm-line);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--rm-muted);
+}
+.realm-mcard-tag.def { background: var(--rm-mp-weak); border-color: rgba(90,157,255,.4); color: var(--rm-mp); }
+.realm-mcard-tag.atk { background: var(--rm-danger-weak); border-color: rgba(229,87,79,.4); color: var(--rm-danger); }
+
+/* 回合顺序 */
+.realm-turn { flex: 1 1 40%; min-height: 0; display: flex; flex-direction: column; }
+.realm-turn-list { flex: 1 1 auto; overflow-y: auto; padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 3px; }
+.realm-turn-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+}
+.realm-turn-row.current { background: var(--rm-accent-weak); border-color: var(--rm-accent-line); }
+.realm-turn-idx { flex: 0 0 22px; width: 22px; text-align: center; font-size: 11px; font-weight: 700; color: var(--rm-faint); }
+.realm-turn-row.current .realm-turn-idx { color: var(--rm-accent-bright); }
+.realm-turn-name { flex: 1 1 auto; font-size: 12px; color: var(--rm-ink-soft); }
+.realm-turn-flag { flex: 0 0 auto; font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--rm-line); }
+.realm-turn-flag.friend { color: var(--rm-hp); border-color: rgba(62,203,142,.4); }
+.realm-turn-flag.enemy { color: var(--rm-danger); border-color: rgba(229,87,79,.4); }
+
+/* 左栏底部：占位说明已移除，左栏直接衔接底部空槽位框体 */
+
+/* ================= 中央主地图区 ================= */
+.realm-center { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: var(--rm-bg); position: relative; }
+
+/* 顶部目标栏 */
+.realm-tgtbar {
+  flex: 0 0 auto;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--rm-panel);
+  border-bottom: 1px solid var(--rm-line);
+  overflow: hidden;
+}
+.realm-tgt-name { font-size: 14px; font-weight: 700; color: var(--rm-ink); white-space: nowrap; }
+.realm-tgt-hp { flex: 1 1 auto; max-width: 320px; min-width: 0; }
+.realm-tgt-hpbar { height: 9px; border-radius: 5px; background: var(--rm-track); overflow: hidden; position: relative; flex: none; }
+.realm-tgt-hpbar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #d9b04a, #f0c95e); border-radius: 5px; } /* 目标血条用暖黄，契合目标感 */
+.realm-tgt-stats { display: flex; gap: 12px; margin-left: auto; white-space: nowrap; }
+.realm-tgt-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: none; }
+.realm-tgt-stat b { font-size: 13px; color: var(--rm-ink); line-height: 1.2; }
+.realm-tgt-stat span { font-size: 10px; color: var(--rm-muted); line-height: 1.2; }
+
+/* 操作工具栏 */
+.realm-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--rm-panel-2);
+  border-bottom: 1px solid var(--rm-line);
+}
+.realm-tool { padding: 5px 11px; border: 1px solid var(--rm-line); border-radius: 7px; background: var(--rm-panel); color: var(--rm-ink-soft); font-size: 12px; }
+.realm-tool.active { background: var(--rm-accent-weak); border-color: var(--rm-accent-line); color: var(--rm-accent-bright); }
+.realm-zoom { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--rm-muted); font-size: 12px; }
+.realm-zoom-val { min-width: 34px; text-align: center; color: var(--rm-ink-soft); }
+.realm-grid-toggle { display: flex; align-items: center; gap: 6px; color: var(--rm-ink-soft); font-size: 12px; }
+
+/* 回合操作浮窗（覆盖于地图上方，居中偏上） */
+.realm-turnoverlay {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background: var(--rm-overlay);
+  border: 1px solid var(--rm-line);
+  border-radius: 12px;
+  box-shadow: var(--rm-shadow);
+  backdrop-filter: blur(4px);
+}
+.realm-round { font-size: 13px; font-weight: 800; letter-spacing: 0.1em; color: var(--rm-accent-bright); }
+.realm-turn-name { font-size: 14px; font-weight: 700; color: var(--rm-ink); }
+.realm-ap { display: flex; gap: 8px; }
+.realm-ap-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--rm-muted); }
+.realm-ap-item b { font-size: 12px; color: var(--rm-ink-soft); font-weight: 700; }
+.realm-endturn { background: var(--rm-accent); color: var(--rm-on-accent); border: none; border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 700; }
+
+/* 地图区（核心） */
+.realm-map { position: relative; flex: 1 1 auto; overflow: hidden; min-height: 0; }
+.realm-map-bg {
+  position: absolute; inset: 0;
+  /* 纯色地图底（区别于周边面板色，后续可替换为写实背景图） */
+  background:
+    radial-gradient(120% 120% at 50% 0%, var(--rm-map-1) 0%, var(--rm-map-2) 55%, var(--rm-map-3) 100%);
+}
+.realm-map-grid {
+  position: absolute; inset: 0;
+  /* 半透明网格线 */
+  background-image:
+    linear-gradient(to right, var(--rm-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rm-grid-line) 1px, transparent 1px);
+  background-size: 46px 46px;
+}
+/* 地图遮罩：让网格边缘向四周淡出，突出战斗焦点 */
+.realm-map-vignette { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px 30px var(--rm-vignette); }
+
+/* Token */
+.realm-token {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.realm-token-core {
+  position: relative;
+  width: 42px; height: 42px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, var(--rm-panel-3), var(--rm-faint));
+  border: 2px solid var(--rm-line-strong, #39465a);
+  display: grid; place-items: center;
+  font-size: 18px;
+  color: var(--rm-muted);
+}
+.realm-token.round .realm-token-core { border-radius: 50%; }
+.realm-token.enemy .realm-token-core { border-color: var(--rm-accent-line); }
+.realm-token.player .realm-token-core { border-color: var(--rm-ok); box-shadow: 0 0 0 2px rgba(126,226,176,.18); }
+.realm-token.selected { z-index: 3; }
+.realm-token.selected .realm-token-core { box-shadow: 0 0 0 3px var(--rm-accent), 0 0 20px rgba(111,141,255,.7); border-color: var(--rm-accent-bright); }
+.realm-token-name { font-size: 10px; color: var(--rm-ink-soft); background: var(--rm-chip-bg); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+.realm-token-hpchip {
+  position: absolute;
+  left: -6px; top: -6px;
+  min-width: 20px; height: 16px;
+  padding: 0 4px;
+  background: var(--rm-chip-bg);
+  border: 1px solid var(--rm-line-strong, #39465a);
+  border-radius: 4px;
+  display: grid; place-items: center;
+  font-size: 9px; font-weight: 700; color: var(--rm-ink);
+}
+.realm-token-icon {
+  position: absolute;
+  right: -4px; bottom: -4px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--rm-panel-3);
+  border: 1px solid var(--rm-line);
+  display: grid; place-items: center;
+  font-size: 8px;
+}
+
+/* ================= 右侧边栏 ================= */
+.realm-right {
+  flex: 0 0 322px;
+  width: 322px;
+  border-left: 1px solid var(--rm-line);
+  background: var(--rm-panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* 标签页 */
+.realm-tabs { flex: 0 0 auto; display: flex; border-bottom: 1px solid var(--rm-line); }
+.realm-tab {
+  flex: 1 1 0;
+  padding: 10px 0 8px;
+  text-align: center;
+  border-bottom: 2px solid transparent;
+  color: var(--rm-muted);
+  font-size: 13px;
+}
+.realm-tab.active { color: var(--rm-accent-bright); border-bottom-color: var(--rm-accent); }
+/* 日志流 */
+.realm-log { flex: 1 1 auto; overflow-y: auto; padding: 12px 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+.realm-entry { display: flex; flex-direction: column; gap: 3px; }
+.realm-entry-meta { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--rm-faint); }
+.realm-entry-meta b { color: var(--rm-ink-soft); font-weight: 700; font-size: 11px; }
+.realm-sys {
+  align-self: flex-start;
+  padding: 4px 9px;
+  border: 1px solid var(--rm-line-soft);
+  border-radius: 7px;
+  background: var(--rm-panel-2);
+  color: var(--rm-muted);
+  font-size: 11px;
+}
+.realm-bubble {
+  padding: 8px 11px;
+  background: var(--rm-panel-2);
+  border: 1px solid var(--rm-line-soft);
+  border-radius: 10px 10px 10px 2px;
+  font-size: 12px;
+  color: var(--rm-ink-soft);
+}
+.realm-dice { display: flex; align-items: center; gap: 8px; padding: 6px 9px; background: var(--rm-bg-deep); border: 1px solid var(--rm-line-soft); border-radius: 8px; font-size: 12px; color: var(--rm-ink-soft); }
+.realm-dice-icon { width: 20px; height: 20px; border-radius: 4px; background: linear-gradient(150deg, #f0c95e, #d9a63a); color: #3a2c08; display: grid; place-items: center; font-size: 10px; font-weight: 800; }
+.realm-dice-formula { color: var(--rm-ink-soft); }
+.realm-dice-result { margin-left: auto; font-weight: 800; font-size: 13px; color: var(--rm-ink); }
+.realm-ability { display: flex; flex-direction: column; gap: 3px; }
+.realm-ability-head { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--rm-ink-soft); }
+.realm-ability-badge { padding: 1px 7px; border-radius: 5px; background: var(--rm-accent-weak); color: var(--rm-accent-bright); font-size: 10px; font-weight: 700; }
+.realm-ability-dmg { font-size: 12px; font-weight: 700; }
+.realm-ability-dmg.heal { color: var(--rm-ok); }
+.realm-ability-dmg.hurt { color: var(--rm-danger); }
+/* 输入框 */
+.realm-inputbar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--rm-line); }
+.realm-input {
+  flex: 1 1 auto;
+  background: var(--rm-input-bg);
+  border: 1px solid var(--rm-line);
+  border-radius: 9px;
+  padding: 8px 12px;
+  color: var(--rm-ink);
+  font-size: 12px;
+}
+.realm-input::placeholder { color: var(--rm-faint); }
+.realm-send { flex: 0 0 auto; background: var(--rm-accent); color: var(--rm-on-accent); border: none; border-radius: 9px; padding: 8px 16px; font-size: 12px; font-weight: 700; }
+
+/* 滚动条（暗色沉浸） */
+.realm-app ::-webkit-scrollbar { width: 9px; height: 9px; }
+.realm-app ::-webkit-scrollbar-thumb { background: var(--rm-raise); border-radius: 6px; }
+.realm-app ::-webkit-scrollbar-thumb:hover { background: #2c3646; }
+.realm-app ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- 交互展示反馈（纯视觉，无功能） ---------- */
+.realm-pill,
+.realm-tool,
+.realm-dock-btn,
+.realm-send,
+.realm-endturn,
+.realm-mcard,
+.realm-token,
+.realm-tab,
+.realm-target-pill,
+.realm-dock-go { cursor: pointer; user-select: none; }
+.realm-pill,
+.realm-tool,
+.realm-dock-btn { transition: background 0.15s, color 0.15s, border-color 0.15s; }
+
+/* 回合浮窗「结束回合」闪光反馈 */
+.realm-turnoverlay.pulse { animation: rm-pulse 0.26s ease; }
+@keyframes rm-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(111,141,255,.5); transform: translateX(-50%) scale(1); }
+  100% { box-shadow: 0 0 0 14px rgba(111,141,255,0); transform: translateX(-50%) scale(1.02); }
+}
+.realm-endturn:active { filter: brightness(1.25); }
+
+/* 右侧标签页空白面板占位 */
+.realm-tab-empty { color: var(--rm-faint); font-size: 12px; padding: 8px 2px; }
+
+/* 角色面板：右侧「角色」标签 · 角色总览紧凑占位 */
+.realm-role { gap: 12px; }
+.realm-role-head { display: flex; align-items: center; gap: 12px; padding: 6px 4px 2px; }
+.realm-role-avatar {
+  flex: none;
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--rm-panel-3), var(--rm-faint));
+  border: 1px solid var(--rm-line);
+  display: grid; place-items: center;
+  font-size: 26px;
+}
+.realm-role-headinfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.realm-role-name { font-size: 17px; font-weight: 800; color: var(--rm-ink); }
+.realm-role-sub { font-size: 11px; color: var(--rm-muted); }
+.realm-role-block { display: flex; flex-direction: column; gap: 8px; }
+.realm-role-blocktitle {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--rm-muted);
+  display: flex; align-items: center;
+}
+.realm-role-blocktitle::after { content: ''; flex: 1; margin-left: 8px; border-top: 1px solid var(--rm-line-soft); }
+.realm-role-hprow { display: flex; align-items: center; gap: 8px; }
+.realm-role-hplabel { flex: none; font-size: 11px; color: var(--rm-muted); }
+.realm-role-hpbar { flex: 1 1 auto; height: 9px; border-radius: 5px; background: var(--rm-track); overflow: hidden; position: relative; }
+.realm-role-hpbar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #1f9d66, var(--rm-ok)); border-radius: 5px; }
+.realm-role-hpnum { flex: none; font-size: 12px; font-weight: 700; color: var(--rm-ink); }
+.realm-role-attrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.realm-role-attr {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 4px;
+  background: var(--rm-panel-2);
+  border: 1px solid var(--rm-line-soft);
+  border-radius: 8px;
+}
+.realm-role-attr-k { font-size: 10px; color: var(--rm-muted); }
+.realm-role-attr-v { font-size: 18px; font-weight: 800; color: var(--rm-ink); }
+.realm-role-core { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.realm-role-coreitem {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 2px;
+  background: var(--rm-panel-2);
+  border: 1px solid var(--rm-line-soft);
+  border-radius: 8px;
+}
+.realm-role-core-v { font-size: 15px; font-weight: 700; color: var(--rm-accent-bright); }
+.realm-role-core-k { font-size: 10px; color: var(--rm-muted); }
+.realm-role-skillgroup { display: flex; flex-direction: column; gap: 6px; }
+.realm-role-skillgroup-k {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--rm-muted);
+  display: flex; align-items: center;
+}
+.realm-role-skillgroup-k::after { content: ''; flex: 1; margin-left: 6px; border-top: 1px dotted var(--rm-line-soft); }
+.realm-role-skills { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px; }
+.realm-role-skill {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 3px 8px;
+  background: var(--rm-panel-2);
+  border: 1px solid var(--rm-line-soft);
+  border-radius: 6px;
+}
+.realm-role-skill-name { font-size: 11px; color: var(--rm-ink-soft); }
+.realm-role-skill-value { font-size: 12px; font-weight: 700; color: var(--rm-ink); }
+
+/* ---------- 【5】页面最底部空槽位（整行通栏） ---------- */
+.realm-dock {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--rm-panel);
+  border-top: 1px solid var(--rm-line);
+}
+.realm-dock-label { font-size: 10px; letter-spacing: 0.14em; color: var(--rm-faint); text-transform: uppercase; }
+
+/* 中层框体：位于「队伍/回合顺序+地图」之下、最底部控件框体之上；横跨左+中到右栏左侧停下 */
+.realm-hband {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 16px;
+  background: var(--rm-panel-2);
+  border-top: 1px solid var(--rm-line);
+}
+.realm-hband-label { color: var(--rm-muted); font-size: 11px; font-weight: 600; }
+.realm-hband-shapes { display: flex; align-items: center; gap: 7px; }
+.realm-hband-note { margin-left: auto; color: var(--rm-faint); font-size: 11px; font-style: italic; }
+
+.realm-dock-group { display: flex; gap: 6px; }
+.realm-dock-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--rm-line);
+  border-radius: 6px;
+  background: var(--rm-panel-2);
+  color: var(--rm-ink-soft);
+  font-size: 12px;
+}
+.realm-dock-btn.active { background: var(--rm-accent-weak); border-color: var(--rm-accent-line); color: var(--rm-accent-bright); }
+/* 方圆占位按钮组 */
+.realm-dock-shapes { display: flex; align-items: center; gap: 6px; }
+.realm-dock-icon {
+  flex: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border: 1px solid var(--rm-line);
+  background: var(--rm-panel-2);
+  color: var(--rm-ink-soft);
+  font-size: 13px;
+  line-height: 1;
+}
+.realm-dock-icon.square { border-radius: 6px; }
+.realm-dock-icon.round { border-radius: 50%; }
+.realm-dock-icon.big { width: 32px; height: 32px; font-size: 15px; }
+.realm-dock-icon:hover { background: var(--rm-raise); color: var(--rm-ink); }
+.realm-dock-field { display: flex; align-items: center; gap: 6px; color: var(--rm-muted); font-size: 12px; }
+.realm-dock-field select,
+.realm-dock-field input {
+  background: var(--rm-panel-2);
+  border: 1px solid var(--rm-line);
+  border-radius: 6px;
+  color: var(--rm-ink-soft);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.realm-dock-field input[type="number"] { width: 56px; }
+.realm-dock-note { margin-left: auto; color: var(--rm-faint); font-size: 11px; font-style: italic; }
+.realm-dock-go {
+  padding: 5px 12px;
+  border: 1px solid var(--rm-line);
+  border-radius: 6px;
+  background: var(--rm-panel-2);
+  color: var(--rm-ink-soft);
+  font-size: 12px;
+}
+.realm-dock-go:hover { background: var(--rm-raise); color: var(--rm-ink); }
+
+/* ---------- 轮回之境页面对全局内容容器的宿主铺展 ---------- */
+.content.realm-host {
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+.content.realm-host > .realm-app { flex: 1 1 auto; }
+@media (max-width: 1024px) {
+  .content.realm-host .realm-left { flex-basis: 240px; width: 240px; }
+  .content.realm-host .realm-right { flex-basis: 280px; width: 280px; }
+}

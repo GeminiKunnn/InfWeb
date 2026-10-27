@@ -584,6 +584,98 @@ textarea::placeholder {
   padding-left: 10px;
   letter-spacing: 0.3px;
 }
+
+/* 九维属性雷达图（总览·属性雷达图） */
+.attr-radar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.attr-radar {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.attr-radar-grid {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.attr-radar-axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.attr-radar-fill {
+  fill: var(--accent);
+  fill-opacity: 0.16;
+}
+.attr-radar-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.attr-radar-dot {
+  fill: var(--accent-bright);
+  stroke: var(--panel);
+  stroke-width: 1;
+}
+.attr-radar-label {
+  fill: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+.attr-radar-value {
+  fill: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+/* 总览·属性段：左=属性数值网格，右=九维雷达图，同一行并排 */
+.attr-cols {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+/* 属性网格：占满雷达图之外的剩余宽度 */
+.attr-cols > .info-grid {
+  flex: 1 1 0;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+/* 压缩属性框：单元格内边距与字号收紧（不限制列宽，宽度交给剩余空间） */
+.attr-cols .derived-cell {
+  min-height: 64px;
+  padding: 8px 10px 9px 12px;
+  gap: 2px;
+}
+.attr-cols .derived-value {
+  font-size: 20px;
+}
+/* 雷达图：保持整体正方形，固定宽度不参与伸缩 */
+.attr-cols .attr-radar-wrap {
+  flex: 0 0 340px;
+  width: 340px;
+}
+.attr-cols .attr-radar {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+@media (max-width: 720px) {
+  .attr-cols {
+    flex-direction: column;
+    align-items: center;
+  }
+  .attr-cols > .info-grid {
+    width: 100%;
+  }
+  .attr-cols .attr-radar-wrap {
+    flex-basis: auto;
+  }
+}
 /* 新建角色：各段标题后紧跟的「❗」问题标记 */
 .newchar-section-title {
   display: flex;
@@ -2145,6 +2237,28 @@ textarea::placeholder {
   margin-top: 14px;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* ---------- 轮回之境·房间列表（复用角色管理卡片） ---------- */
+.realm-room-card {
+  position: relative;
+  overflow: hidden;
+}
+.realm-room-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0b2e20;
+  background: var(--ok);
+  border-radius: 999px;
+  padding: 2px 9px;
+  box-shadow: 0 2px 8px rgba(62, 203, 142, 0.4);
+}
+.realm-room-running:hover {
+  border-color: var(--ok);
+  box-shadow: 0 8px 24px rgba(62, 203, 142, 0.18);
 }
 
 /* 右下角悬浮「新建角色」按钮（圆形 + 十字） */
