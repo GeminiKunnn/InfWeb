@@ -23,15 +23,35 @@ const state = reactive({
   userMenuOpen: false,
 });
 
+// 本次会话（标签页生命周期内）记住当前应用内页面，供刷新后留在原页。
+// 用 sessionStorage 而非 localStorage：刷新仍可恢复，而新开标签页/全新会话
+// 没有该记录，会回到主页面，避免「打开即直入历史子页面」的问题。
+const SESSION_PAGE_KEY = 'infweb.app.page';
+function saveCurrentPage() {
+  try {
+    sessionStorage.setItem(SESSION_PAGE_KEY, state.page);
+  } catch (e) {
+    /* 忽略（隐私模式等） */
+  }
+}
+
 function enterApp() {
   state.screen = 'app';
+  saveCurrentPage();
 }
 function goHome() {
   state.screen = 'landing';
+  // 回到主页即清空会话记录，避免刷新回退到之前所在页面
+  try {
+    sessionStorage.removeItem(SESSION_PAGE_KEY);
+  } catch (e) {
+    /* 忽略 */
+  }
 }
 function go(menu) {
   state.screen = 'app';
   state.page = menu;
+  saveCurrentPage();
 }
 function toggleSidebar() {
   state.sidebarCollapsed = !state.sidebarCollapsed;
